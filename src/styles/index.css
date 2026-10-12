@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de diseño.
+ * Todos los colores del sistema salen de aquí; los componentes nunca usan hex directos.
+ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* Marca */
+  --color-primary-50: #eef3ff;
+  --color-primary-100: #dce6ff;
+  --color-primary-200: #c0d1ff;
+  --color-primary-300: #94b1ff;
+  --color-primary-400: #6189fb;
+  --color-primary-500: #3c64f1;
+  --color-primary-600: #2648d7;
+  --color-primary-700: #1f3bb3;
+  --color-primary-800: #1d3590;
+  --color-primary-900: #1c3074;
+  --color-primary-950: #131d45;
+
+  /* Superficies y texto */
+  --color-surface: #f4f6fb;
+  --color-surface-muted: #eef1f8;
+  --color-line: #e5e9f2;
+  --color-ink: #1b2233;
+  --color-ink-muted: #5f6980;
+  --color-ink-subtle: #9aa3b5;
+
+  /* Barra lateral */
+  --color-rail: #1d3590;
+  --color-rail-hover: #2a45a8;
+  --color-rail-active: #3557c8;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-popover: 0 12px 32px -8px rgb(16 24 40 / 0.18), 0 4px 8px -4px rgb(16 24 40 / 0.08);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-popover-in: popover-in 160ms var(--ease-out-soft);
+  --animate-popover-out: popover-out 120ms ease-in;
+  --animate-tooltip-in: tooltip-in 140ms var(--ease-out-soft);
+
+  @keyframes popover-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes popover-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+  }
+
+  @keyframes tooltip-in {
+    from {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+
+  ::selection {
+    @apply bg-primary-100 text-primary-900;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
