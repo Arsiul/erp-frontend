@@ -1,72 +1,72 @@
-import type { PaymentTerm } from './comercial';
+import type { BalanceStatus, DocumentLine, DocumentTotals } from './comercial';
 
-export interface Supplier {
-  id: string;
-  name: string;
-  ruc: string;
-  contact: string;
-  phone: string;
-  /** Condición de pago que el proveedor nos otorga. */
-  paymentTerm: PaymentTerm;
-  balance: number;
-  status: 'active' | 'inactive';
+export interface PurchaseLine extends DocumentLine {
+  receivedQuantity: number;
 }
 
-export interface ReplenishmentItem {
-  id: string;
-  productCode: string;
-  product: string;
-  warehouse: string;
-  stock: number;
-  minStock: number;
-  suggestedQuantity: number;
-  supplier: string;
-}
+export type PurchaseOrderStatus = 'draft' | 'approved' | 'partial' | 'received' | 'cancelled';
 
-export type PurchaseOrderStatus = 'draft' | 'approved' | 'partial' | 'received' | 'voided';
-
-export interface PurchaseOrder {
+export interface PurchaseOrder extends DocumentTotals {
   id: string;
   number: string;
-  supplier: string;
-  /** Fechas ISO (YYYY-MM-DD). */
+  supplierId: string;
+  supplierName: string;
+  warehouseId: string;
+  warehouseName: string;
   issuedAt: string;
   expectedAt: string;
-  warehouse: string;
-  total: number;
+  lines: PurchaseLine[];
   status: PurchaseOrderStatus;
+  notes: string;
 }
 
-export interface Reception {
+export type ReceiptStatus = 'pending_bill' | 'billed' | 'cancelled';
+
+/** Recepción de mercadería contra una orden de compra. */
+export interface Receipt {
   id: string;
   number: string;
-  purchaseOrder: string;
-  supplier: string;
+  purchaseOrderId: string;
+  purchaseOrderNumber: string;
+  supplierId: string;
+  supplierName: string;
+  warehouseId: string;
+  warehouseName: string;
   receivedAt: string;
-  warehouse: string;
-  receivedBy: string;
-  itemCount: number;
-  status: 'complete' | 'partial' | 'voided';
+  /** Guía de remisión del proveedor. */
+  guideNumber: string;
+  lines: DocumentLine[];
+  /** Valor de lo recibido sin IGV. */
+  subtotal: number;
+  status: ReceiptStatus;
+  supplierInvoiceNumber: string;
 }
 
-export interface SupplierInvoice {
+export type SupplierInvoiceStatus = 'registered' | 'cancelled';
+
+export interface SupplierInvoice extends DocumentTotals {
   id: string;
-  number: string;
-  supplier: string;
-  purchaseOrder: string;
+  /** Número del comprobante del proveedor: F002-0004512. */
+  documentNumber: string;
+  supplierId: string;
+  supplierName: string;
+  receiptId: string;
+  receiptNumber: string;
   issuedAt: string;
   dueAt: string;
-  total: number;
-  status: 'registered' | 'observed' | 'voided';
+  status: SupplierInvoiceStatus;
 }
 
-export interface PurchaseReturn {
+export interface Payable {
   id: string;
-  number: string;
-  supplier: string;
-  purchaseOrder: string;
-  reason: string;
-  returnedAt: string;
-  total: number;
-  status: 'registered' | 'voided';
+  supplierInvoiceId: string;
+  documentNumber: string;
+  supplierId: string;
+  supplierName: string;
+  issuedAt: string;
+  dueAt: string;
+  amount: number;
+  paidAmount: number;
+  balance: number;
+  status: BalanceStatus;
 }

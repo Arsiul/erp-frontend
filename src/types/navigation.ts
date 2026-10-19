@@ -1,5 +1,15 @@
 import type { LucideIcon } from 'lucide-react';
 
+import type { ModuleId } from './administracion';
+import type { ReportId } from './reports';
+import type { ResourceKey } from './resources';
+
+/** Qué muestra una pantalla: el listado de un recurso, un reporte o la configuración. */
+export type NavView =
+  | { kind: 'resource'; resource: ResourceKey }
+  | { kind: 'report'; report: ReportId }
+  | { kind: 'settings' };
+
 /** Submódulo navegable (una pantalla del ERP). */
 export interface NavItem {
   id: string;
@@ -8,8 +18,7 @@ export interface NavItem {
   path: string;
   icon: LucideIcon;
   description: string;
-  /** Paso del plan de construcción en el que se implementa (estructura.md §9.2). */
-  buildStep: number;
+  view: NavView;
 }
 
 /** Bloque de submódulos dentro del panel contextual de un grupo. */
@@ -26,6 +35,8 @@ export interface NavGroup {
   path: string;
   icon: LucideIcon;
   description: string;
+  /** Permiso que lo habilita; sin módulo (Inicio) lo ve cualquier sesión. */
+  module?: ModuleId;
   /** Vacío cuando el grupo es una pantalla única y no necesita panel contextual. */
   sections: readonly NavSection[];
 }

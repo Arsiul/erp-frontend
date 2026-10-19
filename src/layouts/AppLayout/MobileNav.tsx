@@ -4,7 +4,8 @@ import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { NAVIGATION } from '@/config/navigation';
+import { useSession } from '@/hooks/useSession';
+import { visibleNavigation } from '@/utils/navigation';
 import type { NavGroup } from '@/types/navigation';
 
 import { ContextPanel } from './ContextPanel';
@@ -23,11 +24,13 @@ export interface MobileNavProps {
 export function MobileNav({ open, onOpenChange, activeGroup }: MobileNavProps) {
   const navigate = useNavigate();
   const [selectedGroupId, setSelectedGroupId] = useState<string>();
+  const { can } = useSession();
+  const groups = visibleNavigation((module) => can(module));
 
   const shownGroup =
-    NAVIGATION.find((group) => group.id === selectedGroupId) ??
+    groups.find((group) => group.id === selectedGroupId) ??
     (activeGroup?.sections.length ? activeGroup : undefined) ??
-    NAVIGATION.find((group) => group.sections.length > 0);
+    groups.find((group) => group.sections.length > 0);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) setSelectedGroupId(undefined);

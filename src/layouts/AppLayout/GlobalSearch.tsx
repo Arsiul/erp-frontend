@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { useNavigate } from 'react-router';
 
 import { EASE_OUT_SOFT } from '@/components/motion-presets';
+import { useSession } from '@/hooks/useSession';
 import { cn } from '@/utils/cn';
 import { searchNavigation, type NavMatch } from '@/utils/navigation';
 
@@ -16,7 +17,8 @@ export function GlobalSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const results = useMemo(() => searchNavigation(query), [query]);
+  const { can } = useSession();
+  const results = useMemo(() => searchNavigation(query, (module) => can(module)), [query, can]);
   const showResults = isOpen && query.trim().length > 0;
   const activeMatch = results[activeIndex];
 

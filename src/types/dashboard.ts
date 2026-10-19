@@ -31,8 +31,11 @@ export interface MonthlyTotals {
   purchases: number;
 }
 
-/** Venta tal como la muestra el dashboard (sin fecha de vencimiento). */
-export type RecentSale = Omit<Sale, 'dueAt'>;
+/** Venta tal como la muestra el dashboard. */
+export type RecentSale = Pick<
+  Sale,
+  'id' | 'number' | 'customerName' | 'issuedAt' | 'total' | 'status' | 'invoiceNumber'
+>;
 
 export interface TopProduct {
   id: string;

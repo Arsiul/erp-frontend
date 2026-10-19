@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { type ReactNode } from 'react';
 
 import { EASE_OUT_SOFT } from '@/components/motion-presets';
+import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/utils/cn';
 
 import { DataCell } from './DataCell';
@@ -31,6 +32,8 @@ export interface DataTableProps<T extends { id: string }> {
   onRowClick?: (row: T) => void;
   /** Última columna con las acciones del registro. */
   renderRowActions?: (row: T) => ReactNode;
+  /** Registros recién creados: se resaltan con la marca "Nuevo". El orden lo decide quien pasa `rows`. */
+  isNew?: (row: T) => boolean;
   className?: string;
 }
 
@@ -40,6 +43,7 @@ export function DataTable<T extends { id: string }>({
   label,
   onRowClick,
   renderRowActions,
+  isNew,
   className,
 }: DataTableProps<T>) {
   return (
@@ -69,49 +73,66 @@ export function DataTable<T extends { id: string }>({
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((row, index) => (
-            <motion.tr
-              key={row.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, ease: EASE_OUT_SOFT, delay: Math.min(index, 10) * 0.03 }}
-              onClick={
-                onRowClick
-                  ? () => {
-                      onRowClick(row);
-                    }
-                  : undefined
-              }
-              className={cn(
-                'transition-colors duration-150 hover:bg-surface/70',
-                onRowClick && 'cursor-pointer',
-              )}
-            >
-              {columns.map((column) => (
-                <td
-                  key={column.id}
-                  className={cn(
-                    CELL,
-                    isNumeric(column) && 'text-right',
-                    column.hideBelow && RESPONSIVE_CELL[column.hideBelow],
-                  )}
-                >
-                  <DataCell column={column} row={row} />
-                </td>
-              ))}
-              {renderRowActions && (
-                <td
-                  className={cn(CELL, 'w-px py-2 text-right')}
-                  // Las acciones tienen su propio comportamiento: no deben abrir el detalle de la fila.
-                  onClick={(event) => {
-                    event.stopPropagation();
-                  }}
-                >
-                  {renderRowActions(row)}
-                </td>
-              )}
-            </motion.tr>
-          ))}
+          {rows.map((row, index) => {
+            const fresh = isNew?.(row) ?? false;
+            return (
+              <motion.tr
+                key={row.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  duration: 0.3,
+                  ease: EASE_OUT_SOFT,
+                  delay: Math.min(index, 10) * 0.03,
+                }}
+                onClick={
+                  onRowClick
+                    ? () => {
+                        onRowClick(row);
+                      }
+                    : undefined
+                }
+                className={cn(
+                  'transition-colors duration-150 hover:bg-surface/70',
+                  onRowClick && 'cursor-pointer',
+                  fresh && 'bg-primary-50/60 hover:bg-primary-50',
+                )}
+              >
+                {columns.map((column, columnIndex) => (
+                  <td
+                    key={column.id}
+                    className={cn(
+                      CELL,
+                      isNumeric(column) && 'text-right',
+                      column.hideBelow && RESPONSIVE_CELL[column.hideBelow],
+                    )}
+                  >
+                    {fresh && columnIndex === 0 ? (
+                      <div className="flex items-center gap-2">
+                        <DataCell column={column} row={row} />
+                        <Badge tone="primary" appearance="solid">
+                          Nuevo
+                        </Badge>
+                      </div>
+                    ) : (
+                      <DataCell column={column} row={row} />
+                    )}
+                  </td>
+                ))}
+                {renderRowActions && (
+                  <td
+                    className={cn(CELL, 'w-px py-2 text-right')}
+                    // Las acciones tienen su propio comportamiento: no deben abrir el detalle de la fila.
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
+                    {renderRowActions(row)}
+                  </td>
+                )}
+              </motion.tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

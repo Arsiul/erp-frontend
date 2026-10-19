@@ -1,13 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { queryKeys } from '@/services/query-keys';
 import { resourcesService, type ResourceValues } from '@/services/resources.service';
 import type { ResourceKey } from '@/types/resources';
 
-/** Crear, actualizar y eliminar registros de un recurso; tras cada cambio se recarga su listado. */
+/**
+ * Crear, actualizar, eliminar y ejecutar procesos sobre un recurso. Un proceso (facturar, recibir, cobrar…)
+ * toca varios recursos a la vez, así que tras cada cambio se recarga todo lo cacheado.
+ */
 export function useResourceMutations<K extends ResourceKey>(resource: K) {
   const queryClient = useQueryClient();
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.resource(resource) });
+  const refresh = () => queryClient.invalidateQueries();
 
   const create = useMutation({
     mutationFn: (values: ResourceValues<K>) => resourcesService.create(resource, values),
@@ -15,8 +17,8 @@ export function useResourceMutations<K extends ResourceKey>(resource: K) {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<ResourceValues<K>> }) =>
-      resourcesService.update(resource, id, patch),
+    mutationFn: ({ id, values }: { id: string; values: ResourceValues<K> }) =>
+      resourcesService.update(resource, id, values),
     onSuccess: refresh,
   });
 
@@ -25,5 +27,11 @@ export function useResourceMutations<K extends ResourceKey>(resource: K) {
     onSuccess: refresh,
   });
 
-  return { create, update, remove };
+  const runAction = useMutation({
+    mutationFn: ({ id, actionId }: { id: string; actionId: string }) =>
+      resourcesService.runAction(resource, id, actionId),
+    onSuccess: refresh,
+  });
+
+  return { create, update, remove, runAction };
 }

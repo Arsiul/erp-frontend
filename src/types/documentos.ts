@@ -1,13 +1,19 @@
-export type DocumentKind = 'receipt' | 'supplier-invoice' | 'contract' | 'datasheet';
+export type DocumentCategory = 'contract' | 'invoice' | 'guide' | 'order' | 'other';
 
-export interface DocumentFile {
+/** Archivo guardado en el repositorio, opcionalmente vinculado a un registro de otro módulo. */
+export interface StoredDocument {
   id: string;
   name: string;
-  kind: DocumentKind;
-  /** Registro al que pertenece (ej.: "Venta F001-002341"). */
-  linkedTo: string;
-  uploadedBy: string;
-  /** Fecha ISO (YYYY-MM-DD). */
+  category: DocumentCategory;
+  /** Recurso y registro de origen (ej.: "ventas" y su id). */
+  linkedResource: string;
+  linkedId: string;
+  linkedLabel: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  /** Contenido en data URL; solo se guarda si el archivo es pequeño. */
+  content: string;
   uploadedAt: string;
-  sizeKb: number;
+  uploadedBy: string;
 }

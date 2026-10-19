@@ -1,73 +1,113 @@
-export type PaymentTerm = 'cash' | 'credit30' | 'credit60';
-
-export type CustomerStatus = 'active' | 'inactive' | 'blocked';
-
-export interface Customer {
-  id: string;
-  name: string;
-  documentType: 'RUC' | 'DNI';
-  documentNumber: string;
-  contact: string;
-  phone: string;
-  seller: string;
-  paymentTerm: PaymentTerm;
-  creditLimit: number;
-  balance: number;
-  status: CustomerStatus;
+/** Línea de un documento comercial o de compra. */
+export interface DocumentLine {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
 }
 
-export type QuotationStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
+export interface DocumentTotals {
+  subtotal: number;
+  igv: number;
+  total: number;
+}
 
-export interface Quotation {
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted';
+
+export interface Quote extends DocumentTotals {
   id: string;
   number: string;
-  customer: string;
-  seller: string;
-  /** Fechas ISO (YYYY-MM-DD). */
+  customerId: string;
+  customerName: string;
   issuedAt: string;
   validUntil: string;
-  total: number;
-  status: QuotationStatus;
+  seller: string;
+  lines: DocumentLine[];
+  status: QuoteStatus;
+  /** Venta generada al convertirla. */
+  saleNumber: string;
+  notes: string;
 }
 
-export type SalesOrderStatus = 'pending' | 'partial' | 'fulfilled' | 'voided';
+export type PaymentTerm = 'cash' | 'credit';
 
-export interface SalesOrder {
+export type SaleStatus = 'pending_invoice' | 'invoiced' | 'cancelled';
+
+export interface Sale extends DocumentTotals {
   id: string;
   number: string;
-  customer: string;
-  /** Cotización de origen; null si el pedido se registró directo. */
-  quotation: string | null;
+  customerId: string;
+  customerName: string;
+  warehouseId: string;
+  warehouseName: string;
+  quoteId: string;
+  quoteNumber: string;
   issuedAt: string;
-  warehouse: string;
-  total: number;
-  status: SalesOrderStatus;
+  seller: string;
+  paymentTerm: PaymentTerm;
+  lines: DocumentLine[];
+  status: SaleStatus;
+  invoiceId: string;
+  invoiceNumber: string;
+  notes: string;
 }
 
-export type SaleDocumentType = 'invoice' | 'receipt';
+export type InvoiceKind = 'factura' | 'boleta';
 
-export type SaleStatus = 'paid' | 'partial' | 'pending' | 'overdue' | 'voided';
+export type InvoiceStatus = 'issued' | 'cancelled';
 
-export interface Sale {
+/** Comprobante de pago emitido (simulado, sin envío a SUNAT). */
+export interface Invoice extends DocumentTotals {
   id: string;
-  document: string;
-  documentType: SaleDocumentType;
-  customer: string;
-  seller: string;
+  kind: InvoiceKind;
+  /** Serie y correlativo: F001-00000123. */
+  number: string;
+  saleId: string;
+  saleNumber: string;
+  customerId: string;
+  customerName: string;
+  customerDocument: string;
+  warehouseId: string;
   issuedAt: string;
   dueAt: string;
-  total: number;
-  status: SaleStatus;
+  lines: DocumentLine[];
+  /** Suma de las notas de crédito emitidas sobre el comprobante. */
+  creditedAmount: number;
+  status: InvoiceStatus;
 }
 
-export interface CreditNote {
+export type CreditNoteReason = 'return' | 'discount' | 'error';
+
+export interface CreditNote extends DocumentTotals {
   id: string;
   number: string;
-  /** Comprobante que modifica. */
-  sale: string;
-  customer: string;
-  reason: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  warehouseId: string;
+  warehouseName: string;
   issuedAt: string;
-  total: number;
-  status: 'issued' | 'voided';
+  reason: CreditNoteReason;
+  lines: DocumentLine[];
+  notes: string;
+}
+
+/** Estado guardado de una cuenta; "vencida" se deriva de la fecha. */
+export type BalanceStatus = 'pending' | 'partial' | 'paid' | 'cancelled';
+
+export interface Receivable {
+  id: string;
+  invoiceId: string;
+  documentNumber: string;
+  customerId: string;
+  customerName: string;
+  issuedAt: string;
+  dueAt: string;
+  amount: number;
+  paidAmount: number;
+  creditedAmount: number;
+  balance: number;
+  status: BalanceStatus;
 }

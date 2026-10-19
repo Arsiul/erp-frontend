@@ -5,26 +5,18 @@ import { DataTable } from '@/components/data-table/DataTable';
 import type { Column } from '@/components/data-table/types';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SALE_DOCUMENT_TYPE, SALE_STATUS } from '@/modules/comercial/labels';
+import { SALE_STATUS } from '@/modules/shared/status';
 import type { RecentSale } from '@/types/dashboard';
 
 const COLUMNS: readonly Column<RecentSale>[] = [
-  { id: 'document', header: 'Comprobante', kind: 'code', value: (row) => row.document },
+  { id: 'number', header: 'Venta', kind: 'code', value: (row) => row.number },
+  { id: 'customer', header: 'Cliente', kind: 'muted', value: (row) => row.customerName },
   {
-    id: 'type',
-    header: 'Tipo',
-    kind: 'badge',
-    value: (row) => SALE_DOCUMENT_TYPE[row.documentType],
+    id: 'invoice',
+    header: 'Comprobante',
+    kind: 'code',
+    value: (row) => row.invoiceNumber || '—',
     hideBelow: 'md',
-  },
-  { id: 'customer', header: 'Cliente', kind: 'muted', value: (row) => row.customer },
-  // El vendedor solo cabe en pantallas muy anchas; en el resto prima ver el estado.
-  {
-    id: 'seller',
-    header: 'Vendedor',
-    kind: 'person',
-    value: (row) => row.seller,
-    hideBelow: '2xl',
   },
   { id: 'issued', header: 'Fecha', kind: 'date', value: (row) => row.issuedAt },
   { id: 'total', header: 'Total', kind: 'money', value: (row) => row.total },
@@ -36,7 +28,7 @@ export function RecentSalesCard({ sales }: { sales: RecentSale[] }) {
     <Card className="h-full overflow-hidden">
       <CardHeader
         title="Últimas ventas"
-        description="Comprobantes emitidos recientemente"
+        description="Registradas recientemente, con su comprobante si ya se facturaron"
         action={
           <Link
             to="/comercial/ventas"

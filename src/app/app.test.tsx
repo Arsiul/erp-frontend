@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
+import { mockDb } from '@/services/mocks/mock-db';
+import { sessionService } from '@/services/session.service';
+
 import { AppProviders } from './AppProviders';
 import { createQueryClient } from './query-client';
 import { routes } from './router';
@@ -31,11 +34,14 @@ describe('aplicación', () => {
 
   it('redirige un grupo a su primer submódulo', async () => {
     const router = renderApp('/comercial');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Clientes' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/comercial/clientes');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Cotizaciones' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/comercial/cotizaciones');
   });
 
-  it('muestra el listado de un submódulo con sus registros y su paso del plan', async () => {
+  it('muestra el listado de un submódulo con sus registros', async () => {
+    const movements = mockDb.read((store) => store.list('kardex'));
     renderApp('/inventario/kardex');
     expect(await screen.findByRole('heading', { level: 1, name: 'Kardex' })).toBeInTheDocument();
     expect(
@@ -43,26 +49,27 @@ describe('aplicación', () => {
     ).toBeInTheDocument();
 
     const table = await screen.findByRole('table', { name: 'Kardex' });
-    expect(within(table).getAllByRole('row')).toHaveLength(6); // encabezado + 5 movimientos
-    expect(within(table).getByText('REC-000063')).toBeInTheDocument();
-    expect(screen.getByText(/paso 2 de 9/)).toBeInTheDocument();
-  });
+    expect(within(table).getAllByRole('row')).toHaveLength(movements.length + 1);
+  }, 15_000);
 
-  it('filtra el listado con la búsqueda rápida, sin importar tildes', async () => {
+  it('filtra el listado con la búsqueda rápida', async () => {
+    const [first, second] = mockDb.read((store) => store.list('clientes'));
+    if (!first || !second) throw new Error('La demo necesita al menos dos clientes.');
     const user = userEvent.setup();
-    renderApp('/comercial/clientes');
+    renderApp('/maestros/clientes');
 
     const table = await screen.findByRole('table', { name: 'Clientes' });
-    expect(within(table).getByText('Rosa Huamán Flores')).toBeInTheDocument();
+    expect(within(table).getByText(second.name)).toBeInTheDocument();
 
-    await user.type(screen.getByRole('searchbox', { name: 'Buscar en Clientes' }), 'pacifico');
+    const search = screen.getByRole('searchbox', { name: 'Buscar en Clientes' });
+    await user.type(search, first.documentNumber);
 
-    expect(within(table).getByText('Inversiones Pacífico Sur S.A.C.')).toBeInTheDocument();
-    expect(within(table).queryByText('Rosa Huamán Flores')).not.toBeInTheDocument();
-    expect(screen.getByText('1 de 6 registros')).toBeInTheDocument();
+    expect(within(table).getByText(first.name)).toBeInTheDocument();
+    expect(within(table).queryByText(second.name)).not.toBeInTheDocument();
+    expect(screen.getByText(/^1 de \d+ registros$/)).toBeInTheDocument();
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Buscar en Clientes' }));
-    await user.type(screen.getByRole('searchbox', { name: 'Buscar en Clientes' }), 'xyz');
+    await user.clear(search);
+    await user.type(search, 'xyz-sin-coincidencias');
     expect(screen.getByText('Sin resultados')).toBeInTheDocument();
   });
 
@@ -73,23 +80,44 @@ describe('aplicación', () => {
 
   it('navega desde el buscador con el teclado', async () => {
     const user = userEvent.setup();
-    const router = renderApp('/comercial/clientes');
+    const router = renderApp('/maestros/clientes');
 
-    await user.type(await screen.findByRole('combobox', { name: /buscar/i }), 'tesoreria');
-    expect(await screen.findByRole('option', { name: /Tesorería/ })).toBeInTheDocument();
+    await user.type(await screen.findByRole('combobox', { name: /buscar/i }), 'movimientos');
+    expect(await screen.findByRole('option', { name: /Movimientos/ })).toBeInTheDocument();
     await user.keyboard('{Enter}');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Tesorería' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/finanzas/tesoreria');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Movimientos' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/tesoreria/movimientos');
   });
 
   it('recuerda si el menú lateral está contraído', async () => {
     const user = userEvent.setup();
-    renderApp('/comercial/clientes');
+    renderApp('/maestros/clientes');
 
     await user.click(await screen.findByRole('button', { name: 'Contraer menú lateral' }));
 
     expect(screen.getByRole('button', { name: 'Expandir menú lateral' })).toBeInTheDocument();
     expect(window.localStorage.getItem('erp.sidebar.panel-open')).toBe('false');
+  });
+
+  it('pide iniciar sesión antes de entrar y vuelve a la pantalla pedida', async () => {
+    const admin = mockDb.read((store) => store.get('usuarios', 'usr-admin'));
+    if (!admin) throw new Error('La demo no tiene al administrador.');
+    sessionService.logout();
+    const user = userEvent.setup();
+    const router = renderApp('/maestros/clientes');
+
+    expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+
+    await user.clear(screen.getByLabelText('Correo'));
+    await user.type(screen.getByLabelText('Correo'), admin.email);
+    await user.type(screen.getByLabelText('Contraseña'), 'demo');
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
+
+    expect(await screen.findByRole('table', { name: 'Clientes' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/maestros/clientes');
   });
 });

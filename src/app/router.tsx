@@ -1,41 +1,63 @@
+import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 
 import { NAVIGATION } from '@/config/navigation';
 import { AppLayout } from '@/layouts/AppLayout/AppLayout';
-import { isListResource } from '@/modules/list-registry';
+import { SettingsPage } from '@/modules/administracion/SettingsPage';
+import { ReportPage } from '@/modules/reportes/ReportPage';
 import { ResourceListPage } from '@/modules/shared/ResourceListPage';
+import type { NavGroup, NavItem } from '@/types/navigation';
 import { AppLoader } from '@/pages/AppLoader';
-import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage';
+import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { RouteErrorPage } from '@/pages/RouteErrorPage';
 import { getGroupEntryPath, getGroupItems } from '@/utils/navigation';
 
-/**
- * Rutas de los submódulos, generadas desde la configuración de navegación.
- * Hoy cada una muestra su listado de solo lectura; un submódulo sin definición de listado cae en la
- * pantalla "en preparación". Cuando un módulo se implemente, su ruta pasa a `lazy` (como el dashboard).
- */
+import { RequireGroup, RequireSession } from './route-guards';
+
+function screenFor(group: NavGroup, item: NavItem): ReactNode {
+  switch (item.view.kind) {
+    case 'resource':
+      return (
+        <ResourceListPage key={item.id} resource={item.view.resource} group={group} item={item} />
+      );
+    case 'report':
+      return <ReportPage key={item.id} report={item.view.report} group={group} item={item} />;
+    case 'settings':
+      return <SettingsPage key={item.id} group={group} item={item} />;
+  }
+}
+
+/** Rutas de los submódulos, generadas desde la configuración de navegación. */
 const moduleRoutes: RouteObject[] = NAVIGATION.flatMap((group) => {
   const items = getGroupItems(group);
   if (items.length === 0) return [];
 
   return [
-    { path: group.path, element: <Navigate to={getGroupEntryPath(group)} replace /> },
+    {
+      path: group.path,
+      element: (
+        <RequireGroup group={group}>
+          <Navigate to={getGroupEntryPath(group)} replace />
+        </RequireGroup>
+      ),
+    },
     ...items.map((item) => ({
       path: item.path,
-      element: isListResource(item.id) ? (
-        <ResourceListPage key={item.id} resource={item.id} group={group} item={item} />
-      ) : (
-        <ModulePlaceholderPage key={item.id} group={group} item={item} />
-      ),
+      element: <RequireGroup group={group}>{screenFor(group, item)}</RequireGroup>,
     })),
   ];
 });
 
 export const routes: RouteObject[] = [
+  { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <RequireSession>
+        <AppLayout />
+      </RequireSession>
+    ),
     errorElement: <RouteErrorPage />,
     hydrateFallbackElement: <AppLoader />,
     children: [

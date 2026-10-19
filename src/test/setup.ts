@@ -2,12 +2,18 @@ import '@testing-library/jest-dom/vitest';
 
 import { cleanup } from '@testing-library/react';
 import { MotionGlobalConfig } from 'motion/react';
-import { afterEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
 
 import { mockDb } from '@/services/mocks/mock-db';
+import { sessionService } from '@/services/session.service';
 
 // Las pruebas verifican comportamiento, no animaciones: todo llega a su estado final al instante.
 MotionGlobalConfig.skipAnimations = true;
+
+// Por defecto se prueba con el administrador; las pruebas de permisos inician sesión con otro usuario.
+beforeEach(() => {
+  sessionService.signInAs('usr-admin');
+});
 
 afterEach(() => {
   cleanup();

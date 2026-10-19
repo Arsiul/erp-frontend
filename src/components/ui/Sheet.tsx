@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { type ReactNode } from 'react';
 
 import { EASE_OUT_SOFT } from '@/components/motion-presets';
+import { cn } from '@/utils/cn';
 
 export interface SheetProps {
   open: boolean;
@@ -13,10 +14,22 @@ export interface SheetProps {
   children: ReactNode;
   /** Botones fijos al pie del panel. */
   footer?: ReactNode;
+  /** Ancho del panel: los formularios con líneas de productos necesitan más espacio. */
+  size?: keyof typeof SIZE_CLASS;
 }
 
 /** Panel lateral derecho para ver o editar un registro sin salir del listado. */
-export function Sheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+const SIZE_CLASS = { md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' } as const;
+
+export function Sheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+}: SheetProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
@@ -37,7 +50,10 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
               {...(description ? {} : { 'aria-describedby': undefined })}
             >
               <motion.div
-                className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-popover outline-none"
+                className={cn(
+                  'fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-popover outline-none',
+                  SIZE_CLASS[size],
+                )}
                 initial={{ x: '100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}

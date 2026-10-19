@@ -1,33 +1,40 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Eye, MoreHorizontal, Pencil, Trash2, Zap } from 'lucide-react';
+import { ArrowRight, Eye, MoreHorizontal, Pencil, Trash2, Zap } from 'lucide-react';
 
 import { cn } from '@/utils/cn';
 
-import type { StatusAction } from './list-definition';
-import type { RecordCapabilities } from './record-actions';
+import type { FlowAction, ProcessAction } from './list-definition';
+import type { RecordActions } from './record-actions';
 
 export interface RowActionsMenuProps<T> {
   title: string;
-  capabilities: RecordCapabilities<T>;
+  actions: RecordActions<T>;
   onView: () => void;
   onEdit: () => void;
-  onDelete: () => void;
-  onStatusAction: (action: StatusAction<T>) => void;
+  onRemove: () => void;
+  onProcess: (action: ProcessAction<T>) => void;
+  onFlow: (action: FlowAction<T>) => void;
 }
 
 const ITEM =
   'flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium outline-none select-none data-highlighted:bg-surface';
 
-/** Menú "⋯" de cada fila: ver, editar, cambios de estado y eliminar, según lo que permita el registro. */
+const SEPARATOR = 'my-1 h-px bg-line';
+
+/**
+ * Menú "⋯" de cada fila. Primero el paso siguiente del ciclo (facturar, recibir, cobrar…), luego los
+ * cambios de estado, y al final editar y eliminar, según el estado del registro y el rol.
+ */
 export function RowActionsMenu<T>({
   title,
-  capabilities,
+  actions,
   onView,
   onEdit,
-  onDelete,
-  onStatusAction,
+  onRemove,
+  onProcess,
+  onFlow,
 }: RowActionsMenuProps<T>) {
-  const { canEdit, canDelete, statusActions } = capabilities;
+  const { canEdit, canRemove, process, flow } = actions;
 
   return (
     <DropdownMenu.Root>
@@ -41,24 +48,36 @@ export function RowActionsMenu<T>({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="z-50 min-w-52 origin-(--radix-dropdown-menu-content-transform-origin) rounded-xl border border-line bg-white p-1.5 shadow-popover data-[state=closed]:animate-popover-out data-[state=open]:animate-popover-in"
+          className="z-50 min-w-56 origin-(--radix-dropdown-menu-content-transform-origin) rounded-xl border border-line bg-white p-1.5 shadow-popover data-[state=closed]:animate-popover-out data-[state=open]:animate-popover-in"
         >
           <DropdownMenu.Item onSelect={onView} className={cn(ITEM, 'text-ink')}>
             <Eye className="size-4 text-ink-subtle" aria-hidden />
             Ver detalle
           </DropdownMenu.Item>
-          {canEdit && (
-            <DropdownMenu.Item onSelect={onEdit} className={cn(ITEM, 'text-ink')}>
-              <Pencil className="size-4 text-ink-subtle" aria-hidden />
-              Editar
-            </DropdownMenu.Item>
-          )}
-          {statusActions.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-line" />}
-          {statusActions.map((action) => (
+
+          {flow.length > 0 && <DropdownMenu.Separator className={SEPARATOR} />}
+          {flow.map((action) => {
+            const Icon = action.icon ?? ArrowRight;
+            return (
+              <DropdownMenu.Item
+                key={action.id}
+                onSelect={() => {
+                  onFlow(action);
+                }}
+                className={cn(ITEM, 'text-primary-700')}
+              >
+                <Icon className="size-4 text-primary-500" aria-hidden />
+                {action.label}
+              </DropdownMenu.Item>
+            );
+          })}
+
+          {process.length > 0 && <DropdownMenu.Separator className={SEPARATOR} />}
+          {process.map((action) => (
             <DropdownMenu.Item
               key={action.id}
               onSelect={() => {
-                onStatusAction(action);
+                onProcess(action);
               }}
               className={cn(ITEM, action.tone === 'danger' ? 'text-rose-600' : 'text-ink')}
             >
@@ -72,11 +91,21 @@ export function RowActionsMenu<T>({
               {action.label}
             </DropdownMenu.Item>
           ))}
-          {canDelete && (
+
+          {canEdit && (
             <>
-              <DropdownMenu.Separator className="my-1 h-px bg-line" />
+              <DropdownMenu.Separator className={SEPARATOR} />
+              <DropdownMenu.Item onSelect={onEdit} className={cn(ITEM, 'text-ink')}>
+                <Pencil className="size-4 text-ink-subtle" aria-hidden />
+                Editar
+              </DropdownMenu.Item>
+            </>
+          )}
+          {canRemove && (
+            <>
+              {!canEdit && <DropdownMenu.Separator className={SEPARATOR} />}
               <DropdownMenu.Item
-                onSelect={onDelete}
+                onSelect={onRemove}
                 className={cn(ITEM, 'text-rose-600 data-highlighted:bg-rose-50')}
               >
                 <Trash2 className="size-4" aria-hidden />

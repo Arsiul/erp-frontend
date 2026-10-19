@@ -1,79 +1,79 @@
-export interface Product {
+/** Existencias de un producto en un almacén. */
+export interface StockItem {
   id: string;
-  code: string;
-  name: string;
-  category: string;
-  brand: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  categoryName: string;
   unit: string;
-  price: number;
-  cost: number;
-  /** Stock total sumando todos los almacenes. */
-  stock: number;
-  minStock: number;
-  status: 'active' | 'inactive';
-}
-
-export interface CatalogEntry {
-  id: string;
-  type: 'category' | 'brand' | 'unit';
-  name: string;
-  productCount: number;
-}
-
-export interface Warehouse {
-  id: string;
-  code: string;
-  name: string;
-  address: string;
-  manager: string;
-  productCount: number;
-  value: number;
-}
-
-export interface StockEntry {
-  id: string;
-  productCode: string;
-  product: string;
-  warehouse: string;
+  warehouseId: string;
+  warehouseName: string;
   quantity: number;
   minStock: number;
   unitCost: number;
 }
 
+export type KardexOrigin =
+  | 'initial'
+  | 'sale'
+  | 'sale_cancel'
+  | 'credit_note'
+  | 'receipt'
+  | 'receipt_cancel'
+  | 'adjustment'
+  | 'transfer';
+
+/** Movimiento de inventario; lo generan las operaciones, nunca se edita. */
 export interface KardexEntry {
   id: string;
-  /** Fecha y hora ISO local (YYYY-MM-DDTHH:mm). */
   date: string;
-  product: string;
-  warehouse: string;
-  movement: string;
-  document: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  warehouseId: string;
+  warehouseName: string;
+  origin: KardexOrigin;
+  reference: string;
   /** Positivo = entrada, negativo = salida. */
   quantity: number;
+  /** Saldo del producto en el almacén después del movimiento. */
   balance: number;
   unitCost: number;
 }
 
+export type AdjustmentType = 'increase' | 'decrease';
+
+export type AdjustmentReason = 'count' | 'damage' | 'expired' | 'loss' | 'other';
+
+export interface StockAdjustment {
+  id: string;
+  number: string;
+  date: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  warehouseId: string;
+  warehouseName: string;
+  type: AdjustmentType;
+  quantity: number;
+  reason: AdjustmentReason;
+  notes: string;
+}
+
+export type TransferStatus = 'pending' | 'completed' | 'cancelled';
+
 export interface Transfer {
   id: string;
   number: string;
-  from: string;
-  to: string;
-  /** Fecha ISO (YYYY-MM-DD). */
-  createdAt: string;
-  itemCount: number;
-  createdBy: string;
-  status: 'in-transit' | 'received' | 'voided';
-}
-
-export interface Adjustment {
-  id: string;
-  number: string;
-  product: string;
-  warehouse: string;
-  /** Positivo = sobrante, negativo = faltante. */
+  date: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  originWarehouseId: string;
+  originWarehouseName: string;
+  destinationWarehouseId: string;
+  destinationWarehouseName: string;
   quantity: number;
-  reason: string;
-  requestedBy: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: TransferStatus;
+  notes: string;
 }

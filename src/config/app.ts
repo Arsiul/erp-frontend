@@ -9,14 +9,5 @@ export const COMPANY_INFO = {
   branch: 'Almacén principal',
 } as const;
 
-/**
- * Usuario fijo mientras no exista autenticación.
- * Se reemplaza por la sesión real cuando se implemente el login (paso 1 del plan de construcción).
- */
-export const DEMO_USER = {
-  name: 'Usuario Demo',
-  role: 'Gerente general',
-} as const;
-
 export const LOCALE = 'es-PE';
 export const CURRENCY = 'PEN';

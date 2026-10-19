@@ -1,293 +1,285 @@
+import { ArrowLeftRight, History, SlidersHorizontal } from 'lucide-react';
+
 import type { BadgeValue } from '@/components/data-table/types';
-import { ACTIVE_STATUS } from '@/modules/shared/labels';
 import type { ListDefinitionsFor } from '@/modules/shared/list-definition';
-import { CATEGORY_OPTIONS, fromLabels, UNIT_OPTIONS } from '@/modules/shared/options';
-import type { Adjustment, CatalogEntry, Transfer } from '@/types/inventario';
+import {
+  ADJUSTMENT_REASON,
+  ADJUSTMENT_TYPE,
+  KARDEX_ORIGIN,
+  optionsOf,
+  TRANSFER_STATUS,
+} from '@/modules/shared/status';
+import type { KardexOrigin, StockItem } from '@/types/inventario';
+import type { ResourceKey } from '@/types/resources';
+import { todayIso } from '@/utils/dates';
 
-const CATALOG_TYPE: Record<CatalogEntry['type'], BadgeValue> = {
-  category: { label: 'Categoría', tone: 'primary', appearance: 'soft' },
-  brand: { label: 'Marca', tone: 'info', appearance: 'soft' },
-  unit: { label: 'Unidad', tone: 'neutral', appearance: 'soft' },
-};
-
-const TRANSFER_STATUS: Record<Transfer['status'], BadgeValue> = {
-  'in-transit': { label: 'En tránsito', tone: 'warning' },
-  received: { label: 'Recibida', tone: 'success' },
-  voided: { label: 'Anulada', tone: 'neutral' },
-};
-
-const ADJUSTMENT_STATUS: Record<Adjustment['status'], BadgeValue> = {
-  pending: { label: 'Por aprobar', tone: 'warning' },
-  approved: { label: 'Aprobado', tone: 'success' },
-  rejected: { label: 'Rechazado', tone: 'danger' },
-};
-
-/** Estado de existencias frente al mínimo configurado. */
-function stockLevel(quantity: number, minStock: number): BadgeValue {
-  return quantity < minStock
-    ? { label: 'Bajo mínimo', tone: 'danger', appearance: 'soft' }
-    : { label: 'Normal', tone: 'success', appearance: 'soft' };
+function stockLevel(row: StockItem): BadgeValue {
+  if (row.quantity <= 0) return { label: 'Sin stock', tone: 'danger' };
+  if (row.quantity < row.minStock) return { label: 'Bajo mínimo', tone: 'warning' };
+  return { label: 'Normal', tone: 'success' };
 }
 
+const activeProducts = {
+  resource: 'productos',
+  filter: (row: { status: string }) => row.status === 'active',
+} as const;
+const activeWarehouses = {
+  resource: 'almacenes',
+  filter: (row: { status: string }) => row.status === 'active',
+} as const;
+
+/** Documento que originó cada movimiento del kardex, para ir a verlo. */
+const KARDEX_SOURCES: { origins: KardexOrigin[]; target: ResourceKey; label: string }[] = [
+  { origins: ['sale', 'sale_cancel'], target: 'ventas', label: 'Ver venta' },
+  { origins: ['credit_note'], target: 'notas-credito', label: 'Ver nota de crédito' },
+  { origins: ['receipt', 'receipt_cancel'], target: 'recepciones', label: 'Ver recepción' },
+  { origins: ['adjustment'], target: 'ajustes', label: 'Ver ajuste' },
+  { origins: ['transfer'], target: 'transferencias', label: 'Ver transferencia' },
+];
+
 export const INVENTARIO_LISTS: ListDefinitionsFor<
-  'productos' | 'catalogos' | 'almacenes' | 'stock' | 'kardex' | 'transferencias' | 'ajustes'
+  'stock' | 'kardex' | 'ajustes' | 'transferencias'
 > = {
-  productos: {
-    entity: { singular: 'producto', gender: 'm' },
-    rowTitle: (row) => row.name,
-    searchPlaceholder: 'Buscar por nombre, código, categoría o marca...',
-    searchFields: (row) => [row.name, row.code, row.category, row.brand],
-    columns: [
-      {
-        id: 'name',
-        header: 'Producto',
-        kind: 'title',
-        value: (row) => ({ title: row.name, subtitle: `${row.code} · ${row.brand}` }),
-      },
-      {
-        id: 'category',
-        header: 'Categoría',
-        kind: 'muted',
-        value: (row) => row.category,
-        hideBelow: 'lg',
-      },
-      { id: 'unit', header: 'Unidad', kind: 'muted', value: (row) => row.unit, hideBelow: 'xl' },
-      { id: 'cost', header: 'Costo', kind: 'money', value: (row) => row.cost, hideBelow: 'xl' },
-      { id: 'price', header: 'Precio', kind: 'money', value: (row) => row.price },
-      { id: 'stock', header: 'Stock', kind: 'number', value: (row) => row.stock },
-      {
-        id: 'level',
-        header: 'Nivel',
-        kind: 'badge',
-        value: (row) => stockLevel(row.stock, row.minStock),
-      },
-    ],
-    form: [
-      { key: 'name', label: 'Nombre', type: 'text', required: true, fullWidth: true },
-      { key: 'code', label: 'Código', type: 'text', required: true, placeholder: 'CEM-001' },
-      { key: 'brand', label: 'Marca', type: 'text' },
-      { key: 'category', label: 'Categoría', type: 'select', options: CATEGORY_OPTIONS },
-      {
-        key: 'unit',
-        label: 'Unidad de medida',
-        type: 'select',
-        options: UNIT_OPTIONS,
-        hint: 'Una sola unidad por producto.',
-      },
-      { key: 'price', label: 'Precio de venta', type: 'money', min: 0, required: true },
-      { key: 'cost', label: 'Costo', type: 'money', min: 0 },
-      {
-        key: 'minStock',
-        label: 'Stock mínimo',
-        type: 'number',
-        min: 0,
-        hint: 'Por debajo de esta cantidad el sistema avisa.',
-      },
-      { key: 'status', label: 'Estado', type: 'select', options: fromLabels(ACTIVE_STATUS) },
-    ],
-    createDefaults: () => ({
-      code: '',
-      name: '',
-      category: 'Construcción',
-      brand: '',
-      unit: 'UND',
-      price: 0,
-      cost: 0,
-      // El stock nunca se escribe a mano: un producto nuevo empieza en cero.
-      stock: 0,
-      minStock: 0,
-      status: 'active',
-    }),
-    canEdit: () => true,
-    // Un producto con existencias no se puede eliminar.
-    canDelete: (row) => row.stock === 0,
-  },
-  catalogos: {
-    entity: { singular: 'elemento del catálogo', gender: 'm' },
-    rowTitle: (row) => row.name,
-    searchPlaceholder: 'Buscar categoría, marca o unidad...',
-    searchFields: (row) => [row.name, CATALOG_TYPE[row.type].label],
-    columns: [
-      { id: 'name', header: 'Nombre', kind: 'code', value: (row) => row.name },
-      { id: 'type', header: 'Tipo', kind: 'badge', value: (row) => CATALOG_TYPE[row.type] },
-      { id: 'products', header: 'Productos', kind: 'number', value: (row) => row.productCount },
-    ],
-    form: [
-      { key: 'type', label: 'Tipo', type: 'select', options: fromLabels(CATALOG_TYPE) },
-      { key: 'name', label: 'Nombre', type: 'text', required: true },
-    ],
-    createDefaults: () => ({ type: 'category', name: '', productCount: 0 }),
-    canEdit: () => true,
-    canDelete: (row) => row.productCount === 0,
-  },
-  almacenes: {
-    entity: { singular: 'almacén', gender: 'm' },
-    rowTitle: (row) => row.name,
-    searchPlaceholder: 'Buscar por nombre, dirección o responsable...',
-    searchFields: (row) => [row.name, row.code, row.address, row.manager],
-    columns: [
-      {
-        id: 'name',
-        header: 'Almacén',
-        kind: 'title',
-        value: (row) => ({ title: row.name, subtitle: row.code }),
-      },
-      {
-        id: 'address',
-        header: 'Dirección',
-        kind: 'muted',
-        value: (row) => row.address,
-        hideBelow: 'lg',
-      },
-      { id: 'manager', header: 'Responsable', kind: 'person', value: (row) => row.manager },
-      {
-        id: 'products',
-        header: 'Productos',
-        kind: 'number',
-        value: (row) => row.productCount,
-        hideBelow: 'md',
-      },
-      { id: 'value', header: 'Valor del stock', kind: 'money', value: (row) => row.value },
-    ],
-    form: [
-      { key: 'name', label: 'Nombre', type: 'text', required: true },
-      { key: 'code', label: 'Código', type: 'text', required: true, placeholder: 'ALM-03' },
-      { key: 'address', label: 'Dirección', type: 'text', fullWidth: true },
-      { key: 'manager', label: 'Responsable', type: 'text' },
-    ],
-    createDefaults: () => ({
-      code: '',
-      name: '',
-      address: '',
-      manager: '',
-      productCount: 0,
-      value: 0,
-    }),
-    canEdit: () => true,
-    canDelete: (row) => row.productCount === 0,
-  },
   stock: {
-    entity: { singular: 'existencia', gender: 'f' },
-    rowTitle: (row) => `${row.product} · ${row.warehouse}`,
-    searchPlaceholder: 'Buscar por producto, código o almacén...',
-    searchFields: (row) => [row.product, row.productCode, row.warehouse],
+    entity: { singular: 'existencia', plural: 'existencias', newLabel: '' },
+    rowTitle: (row) => `${row.productName} · ${row.warehouseName}`,
+    searchPlaceholder: 'Buscar por SKU, producto, categoría o almacén...',
+    searchFields: (row) => [row.sku, row.productName, row.categoryName, row.warehouseName],
     columns: [
       {
         id: 'product',
         header: 'Producto',
         kind: 'title',
-        value: (row) => ({ title: row.product, subtitle: row.productCode }),
+        value: (row) => ({ title: row.productName, subtitle: row.sku }),
       },
-      { id: 'warehouse', header: 'Almacén', kind: 'muted', value: (row) => row.warehouse },
-      { id: 'quantity', header: 'Cantidad', kind: 'number', value: (row) => row.quantity },
+      { id: 'warehouse', header: 'Almacén', kind: 'muted', value: (row) => row.warehouseName },
       {
-        id: 'min',
+        id: 'category',
+        header: 'Categoría',
+        kind: 'muted',
+        value: (row) => row.categoryName,
+        hideBelow: 'xl',
+      },
+      { id: 'quantity', header: 'Existencias', kind: 'number', value: (row) => row.quantity },
+      {
+        id: 'minStock',
         header: 'Mínimo',
         kind: 'number',
         value: (row) => row.minStock,
-        hideBelow: 'md',
+        hideBelow: 'lg',
       },
       {
-        id: 'cost',
-        header: 'Costo unit.',
+        id: 'unitCost',
+        header: 'Costo promedio',
         kind: 'money',
         value: (row) => row.unitCost,
-        hideBelow: 'xl',
+        hideBelow: '2xl',
       },
       {
         id: 'value',
         header: 'Valorizado',
         kind: 'money',
         value: (row) => row.quantity * row.unitCost,
-        hideBelow: 'lg',
+        hideBelow: 'md',
       },
-      {
-        id: 'level',
-        header: 'Nivel',
-        kind: 'badge',
-        value: (row) => stockLevel(row.quantity, row.minStock),
-      },
+      { id: 'level', header: 'Nivel', kind: 'badge', value: stockLevel },
     ],
-    // La cantidad no se edita (solo cambia con movimientos); el mínimo por almacén sí.
     form: [
       {
         key: 'minStock',
         label: 'Stock mínimo en este almacén',
         type: 'number',
-        min: 0,
         required: true,
+        min: 0,
+        fullWidth: true,
+        hint: 'Debajo de este nivel aparece en alertas y se sugiere reponer.',
       },
     ],
-    canEdit: () => true,
-  },
-  kardex: {
-    entity: { singular: 'movimiento', gender: 'm' },
-    rowTitle: (row) => `${row.movement} · ${row.document}`,
-    searchPlaceholder: 'Buscar por movimiento o documento...',
-    searchFields: (row) => [row.movement, row.document, row.product],
-    columns: [
-      { id: 'date', header: 'Fecha', kind: 'datetime', value: (row) => row.date },
+    flowActions: [
       {
-        id: 'movement',
-        header: 'Movimiento',
+        id: 'adjust',
+        label: 'Ajustar existencias',
+        target: 'ajustes',
+        icon: SlidersHorizontal,
+      },
+      {
+        id: 'transfer',
+        label: 'Transferir a otro almacén',
+        target: 'transferencias',
+        icon: ArrowLeftRight,
+        when: (row) => row.quantity > 0,
+      },
+      {
+        id: 'kardex',
+        label: 'Ver kardex',
+        target: 'kardex',
+        icon: History,
+        search: (row) => row.sku,
+      },
+      { id: 'order', label: 'Nueva orden de compra', target: 'ordenes-compra' },
+    ],
+  },
+
+  kardex: {
+    entity: { singular: 'movimiento de kardex', plural: 'movimientos de kardex', newLabel: '' },
+    rowTitle: (row) => `${row.reference} · ${row.productName}`,
+    searchPlaceholder: 'Buscar por SKU, producto, almacén o documento...',
+    searchFields: (row) => [row.sku, row.productName, row.warehouseName, row.reference],
+    columns: [
+      { id: 'date', header: 'Fecha', kind: 'date', value: (row) => row.date },
+      {
+        id: 'product',
+        header: 'Producto',
         kind: 'title',
-        value: (row) => ({ title: row.movement, subtitle: row.document }),
+        value: (row) => ({ title: row.productName, subtitle: row.sku }),
       },
       {
         id: 'warehouse',
         header: 'Almacén',
         kind: 'muted',
-        value: (row) => row.warehouse,
-        hideBelow: 'xl',
+        value: (row) => row.warehouseName,
+        hideBelow: 'lg',
       },
+      { id: 'origin', header: 'Origen', kind: 'badge', value: (row) => KARDEX_ORIGIN[row.origin] },
       {
-        id: 'quantity',
-        header: 'Entrada / salida',
-        kind: 'number',
-        value: (row) => row.quantity,
-        signed: true,
-      },
-      { id: 'balance', header: 'Saldo', kind: 'number', value: (row) => row.balance },
-      {
-        id: 'cost',
-        header: 'Costo unit.',
-        kind: 'money',
-        value: (row) => row.unitCost,
+        id: 'reference',
+        header: 'Documento',
+        kind: 'code',
+        value: (row) => row.reference,
         hideBelow: 'md',
       },
+      { id: 'quantity', header: 'Cantidad', kind: 'number', value: (row) => row.quantity },
+      { id: 'balance', header: 'Saldo', kind: 'number', value: (row) => row.balance },
       {
-        id: 'value',
-        header: 'Saldo valorizado',
+        id: 'unitCost',
+        header: 'Costo unitario',
         kind: 'money',
-        value: (row) => row.balance * row.unitCost,
-        hideBelow: 'lg',
-      },
-    ],
-  },
-  transferencias: {
-    entity: { singular: 'transferencia', gender: 'f' },
-    rowTitle: (row) => row.number,
-    searchPlaceholder: 'Buscar por número o almacén...',
-    searchFields: (row) => [row.number, row.from, row.to, row.createdBy],
-    columns: [
-      { id: 'number', header: 'Número', kind: 'code', value: (row) => row.number },
-      { id: 'from', header: 'Origen', kind: 'muted', value: (row) => row.from },
-      { id: 'to', header: 'Destino', kind: 'muted', value: (row) => row.to },
-      { id: 'date', header: 'Fecha', kind: 'date', value: (row) => row.createdAt, hideBelow: 'md' },
-      {
-        id: 'items',
-        header: 'Productos',
-        kind: 'number',
-        value: (row) => row.itemCount,
-        hideBelow: 'lg',
-      },
-      {
-        id: 'by',
-        header: 'Registró',
-        kind: 'person',
-        value: (row) => row.createdBy,
+        value: (row) => row.unitCost,
         hideBelow: 'xl',
       },
+    ],
+    flowActions: [
+      ...KARDEX_SOURCES.map((source) => ({
+        id: `source-${source.target}`,
+        label: source.label,
+        target: source.target,
+        when: (row: { origin: KardexOrigin }) => source.origins.includes(row.origin),
+        search: (row: { reference: string }) => row.reference,
+      })),
+      { id: 'stock', label: 'Ver stock', target: 'stock', search: (row) => row.sku },
+    ],
+  },
+
+  ajustes: {
+    entity: { singular: 'ajuste', plural: 'ajustes', newLabel: 'Nuevo ajuste' },
+    rowTitle: (row) => row.number,
+    searchPlaceholder: 'Buscar por número, producto o almacén...',
+    searchFields: (row) => [row.number, row.sku, row.productName, row.warehouseName],
+    columns: [
+      {
+        id: 'number',
+        header: 'Ajuste',
+        kind: 'title',
+        value: (row) => ({ title: row.number, subtitle: ADJUSTMENT_REASON[row.reason] }),
+      },
+      { id: 'date', header: 'Fecha', kind: 'date', value: (row) => row.date, hideBelow: 'md' },
+      { id: 'product', header: 'Producto', kind: 'muted', value: (row) => row.productName },
+      {
+        id: 'warehouse',
+        header: 'Almacén',
+        kind: 'muted',
+        value: (row) => row.warehouseName,
+        hideBelow: 'lg',
+      },
+      { id: 'type', header: 'Tipo', kind: 'badge', value: (row) => ADJUSTMENT_TYPE[row.type] },
+      { id: 'quantity', header: 'Cantidad', kind: 'number', value: (row) => row.quantity },
+    ],
+    form: [
+      {
+        key: 'productId',
+        label: 'Producto',
+        type: 'select',
+        required: true,
+        fullWidth: true,
+        optionsFrom: activeProducts,
+      },
+      {
+        key: 'warehouseId',
+        label: 'Almacén',
+        type: 'select',
+        required: true,
+        optionsFrom: activeWarehouses,
+      },
+      { key: 'date', label: 'Fecha', type: 'date', required: true },
+      {
+        key: 'type',
+        label: 'Tipo de ajuste',
+        type: 'select',
+        required: true,
+        options: optionsOf(ADJUSTMENT_TYPE),
+      },
+      { key: 'quantity', label: 'Cantidad', type: 'number', required: true, min: 1 },
+      {
+        key: 'reason',
+        label: 'Motivo',
+        type: 'select',
+        required: true,
+        fullWidth: true,
+        options: optionsOf(ADJUSTMENT_REASON),
+      },
+      { key: 'notes', label: 'Observaciones', type: 'textarea', fullWidth: true },
+    ],
+    createDefaults: () => ({ date: todayIso(), type: 'increase', reason: 'count' }),
+    prefill: {
+      stock: (item) => ({ productId: item.productId, warehouseId: item.warehouseId }),
+      productos: (product) => ({ productId: product.id }),
+    },
+    /** Un ajuste ya movió el stock: se corrige con otro ajuste. */
+    editWhen: () => false,
+    removeWhen: () => false,
+    flowActions: [
+      {
+        id: 'kardex',
+        label: 'Ver en kardex',
+        target: 'kardex',
+        icon: History,
+        search: (row) => row.number,
+      },
+      { id: 'stock', label: 'Ver stock', target: 'stock', search: (row) => row.sku },
+    ],
+  },
+
+  transferencias: {
+    entity: {
+      singular: 'transferencia',
+      plural: 'transferencias',
+      newLabel: 'Nueva transferencia',
+    },
+    rowTitle: (row) => row.number,
+    searchPlaceholder: 'Buscar por número, producto o almacén...',
+    searchFields: (row) => [
+      row.number,
+      row.sku,
+      row.productName,
+      row.originWarehouseName,
+      row.destinationWarehouseName,
+    ],
+    columns: [
+      {
+        id: 'number',
+        header: 'Transferencia',
+        kind: 'title',
+        value: (row) => ({ title: row.number, subtitle: row.productName }),
+      },
+      { id: 'date', header: 'Fecha', kind: 'date', value: (row) => row.date, hideBelow: 'md' },
+      {
+        id: 'route',
+        header: 'Origen → destino',
+        kind: 'muted',
+        value: (row) => `${row.originWarehouseName} → ${row.destinationWarehouseName}`,
+        hideBelow: 'lg',
+      },
+      { id: 'quantity', header: 'Cantidad', kind: 'number', value: (row) => row.quantity },
       {
         id: 'status',
         header: 'Estado',
@@ -295,98 +287,76 @@ export const INVENTARIO_LISTS: ListDefinitionsFor<
         value: (row) => TRANSFER_STATUS[row.status],
       },
     ],
-    statusActions: [
+    form: [
       {
-        id: 'receive',
-        label: 'Confirmar recepción',
-        when: (row) => row.status === 'in-transit',
-        patch: () => ({ status: 'received' }),
-        confirm: {
-          title: '¿Confirmar la recepción?',
-          description: (row) => `La mercadería de ${row.number} entrará al stock de ${row.to}.`,
-          confirmLabel: 'Confirmar recepción',
-        },
-        success: (row) => `${row.number} recibida en ${row.to}.`,
+        key: 'productId',
+        label: 'Producto',
+        type: 'select',
+        required: true,
+        fullWidth: true,
+        optionsFrom: activeProducts,
       },
       {
-        id: 'void',
-        label: 'Anular',
-        tone: 'danger',
-        when: (row) => row.status === 'in-transit',
-        patch: () => ({ status: 'voided' }),
+        key: 'originWarehouseId',
+        label: 'Almacén de origen',
+        type: 'select',
+        required: true,
+        optionsFrom: activeWarehouses,
+      },
+      {
+        key: 'destinationWarehouseId',
+        label: 'Almacén de destino',
+        type: 'select',
+        required: true,
+        optionsFrom: {
+          resource: 'almacenes',
+          filter: (row, values) => row.status === 'active' && row.id !== values.originWarehouseId,
+        },
+      },
+      { key: 'quantity', label: 'Cantidad', type: 'number', required: true, min: 1 },
+      { key: 'date', label: 'Fecha', type: 'date', required: true },
+      { key: 'notes', label: 'Observaciones', type: 'textarea', fullWidth: true },
+    ],
+    createDefaults: () => ({ date: todayIso() }),
+    prefill: {
+      stock: (item) => ({ productId: item.productId, originWarehouseId: item.warehouseId }),
+    },
+    editWhen: (row) => row.status === 'pending',
+    removeWhen: () => false,
+    processActions: [
+      {
+        id: 'complete',
+        label: 'Confirmar llegada',
+        when: (row) => row.status === 'pending',
         confirm: {
-          title: '¿Anular la transferencia?',
-          description: (row) => `La mercadería de ${row.number} vuelve a ${row.from}.`,
+          title: 'Confirmar transferencia',
+          description: (row) =>
+            `${row.quantity} de ${row.productName} salen de ${row.originWarehouseName} y entran a ${row.destinationWarehouseName}.`,
+          confirmLabel: 'Confirmar',
+        },
+        success: (row) => `${row.number} completada; el stock de ambos almacenes ya está al día.`,
+      },
+      {
+        id: 'cancel',
+        label: 'Anular transferencia',
+        tone: 'danger',
+        when: (row) => row.status === 'pending',
+        confirm: {
+          title: 'Anular transferencia',
+          description: (row) => `${row.number} quedará anulada sin mover stock.`,
           confirmLabel: 'Anular',
         },
-        success: (row) => `${row.number} anulada.`,
+        success: (row) => `${row.number} quedó anulada.`,
       },
     ],
-  },
-  ajustes: {
-    entity: { singular: 'ajuste', gender: 'm' },
-    rowTitle: (row) => row.number,
-    searchPlaceholder: 'Buscar por número, producto o motivo...',
-    searchFields: (row) => [row.number, row.product, row.reason, row.warehouse],
-    columns: [
-      { id: 'number', header: 'Número', kind: 'code', value: (row) => row.number },
-      { id: 'product', header: 'Producto', kind: 'muted', value: (row) => row.product },
+    flowActions: [
       {
-        id: 'warehouse',
-        header: 'Almacén',
-        kind: 'muted',
-        value: (row) => row.warehouse,
-        hideBelow: '2xl',
-      },
-      {
-        id: 'quantity',
-        header: 'Cantidad',
-        kind: 'number',
-        value: (row) => row.quantity,
-        signed: true,
-      },
-      {
-        id: 'reason',
-        header: 'Motivo',
-        kind: 'muted',
-        value: (row) => row.reason,
-        hideBelow: 'lg',
-      },
-      {
-        id: 'by',
-        header: 'Solicitó',
-        kind: 'person',
-        value: (row) => row.requestedBy,
-        hideBelow: 'md',
-      },
-      {
-        id: 'status',
-        header: 'Estado',
-        kind: 'badge',
-        value: (row) => ADJUSTMENT_STATUS[row.status],
-      },
-    ],
-    statusActions: [
-      {
-        id: 'approve',
-        label: 'Aprobar',
-        when: (row) => row.status === 'pending',
-        patch: () => ({ status: 'approved' }),
-        confirm: {
-          title: '¿Aprobar el ajuste?',
-          description: (row) =>
-            `El stock de ${row.product} en ${row.warehouse} cambiará en ${row.quantity > 0 ? '+' : ''}${String(row.quantity)} unidades.`,
-          confirmLabel: 'Aprobar ajuste',
-        },
-        success: (row) => `${row.number} aprobado. El kardex se actualizó.`,
-      },
-      {
-        id: 'reject',
-        label: 'Rechazar',
-        tone: 'danger',
-        when: (row) => row.status === 'pending',
-        patch: () => ({ status: 'rejected' }),
-        success: (row) => `${row.number} rechazado.`,
+        id: 'kardex',
+        label: 'Ver en kardex',
+        target: 'kardex',
+        icon: History,
+        when: (row) => row.status === 'completed',
+        search: (row) => row.number,
       },
     ],
   },

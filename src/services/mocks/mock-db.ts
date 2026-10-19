@@ -1,10 +1,10 @@
-import type { BusinessAlert } from '@/types/alerts';
-import type { DashboardSummary } from '@/types/dashboard';
-import type { ResourceKey, ResourceMap, ResourceRecords } from '@/types/resources';
+import { RESOURCE_KEYS } from '@/types/resources';
 
-import { ALERTS_MOCK } from './alerts.mock';
-import { DASHBOARD_SUMMARY_MOCK } from './dashboard.mock';
-import { RESOURCE_MOCKS } from './records';
+import { baseDatabase, DB_VERSION } from './seed/base';
+import { buildDemoDatabase } from './seed/demo';
+import { createStore, type DatasetState, type MockDatabase, type Store } from './store';
+
+export type { DatasetState } from './store';
 
 /**
  * Base de datos simulada del frontend.
@@ -12,74 +12,20 @@ import { RESOURCE_MOCKS } from './records';
  * Vive en memoria y se guarda en localStorage para que los cambios sobrevivan a una recarga.
  * Es un reemplazo temporal de la API: cuando exista el backend, los servicios dejan de usarla.
  *
- * Si cambia la forma de los datos de demostración, sube STORAGE_VERSION para descartar lo guardado.
+ * Si cambia la forma de los datos, sube DB_VERSION (seed/base.ts) para descartar lo guardado.
  */
 const STORAGE_KEY = 'erp.mock-db';
-const STORAGE_VERSION = 1;
-
-export type DatasetState = 'demo' | 'modified' | 'empty';
-
-interface MockDatabase {
-  version: number;
-  state: DatasetState;
-  records: ResourceRecords;
-  dashboard: DashboardSummary;
-  alerts: BusinessAlert[];
-}
-
-function demoDatabase(): MockDatabase {
-  return structuredClone({
-    version: STORAGE_VERSION,
-    state: 'demo',
-    records: RESOURCE_MOCKS,
-    dashboard: DASHBOARD_SUMMARY_MOCK,
-    alerts: ALERTS_MOCK,
-  });
-}
-
-/** Panel general sin movimientos: mismos indicadores, en cero. */
-function emptyDashboard(): DashboardSummary {
-  const blank = structuredClone(DASHBOARD_SUMMARY_MOCK);
-  return {
-    periodLabel: blank.periodLabel,
-    primaryKpis: blank.primaryKpis.map((kpi) => ({
-      ...kpi,
-      value: 0,
-      changePercent: null,
-      caption: 'Sin movimientos',
-    })),
-    operationalKpis: blank.operationalKpis.map((kpi) => ({
-      ...kpi,
-      value: 0,
-      changePercent: null,
-      caption: 'Sin movimientos',
-    })),
-    monthlyTotals: blank.monthlyTotals.map((month) => ({ ...month, sales: 0, purchases: 0 })),
-    recentSales: [],
-    topProducts: [],
-  };
-}
-
-function emptyDatabase(): MockDatabase {
-  const records = Object.fromEntries(
-    Object.keys(RESOURCE_MOCKS).map((resource) => [resource, []]),
-  ) as unknown as ResourceRecords;
-  return {
-    version: STORAGE_VERSION,
-    state: 'empty',
-    records,
-    dashboard: emptyDashboard(),
-    alerts: [],
-  };
-}
 
 function isStoredDatabase(value: unknown): value is MockDatabase {
   if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Partial<MockDatabase>;
+  const candidate = value as { [K in keyof MockDatabase]?: unknown };
   return (
-    candidate.version === STORAGE_VERSION &&
+    candidate.version === DB_VERSION &&
+    typeof candidate.settings === 'object' &&
+    typeof candidate.sequences === 'object' &&
     typeof candidate.records === 'object' &&
-    Object.keys(RESOURCE_MOCKS).every((resource) =>
+    candidate.records !== null &&
+    RESOURCE_KEYS.every((resource) =>
       Array.isArray((candidate.records as Record<string, unknown>)[resource]),
     )
   );
@@ -95,90 +41,64 @@ function load(): MockDatabase {
   } catch {
     // Almacenamiento no disponible o dañado: se parte de los datos de demostración.
   }
-  return demoDatabase();
+  const fresh = buildDemoDatabase();
+  persist(fresh);
+  return fresh;
 }
 
-let db = load();
-
-function persist(): void {
+function persist(value: MockDatabase): void {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
-    // Sin almacenamiento: los cambios duran solo esta sesión.
+    // Sin almacenamiento o sin espacio: los cambios duran solo esta sesión.
   }
 }
 
-function touch(): void {
-  if (db.state === 'demo') db.state = 'modified';
-  persist();
-}
+let db: MockDatabase | undefined;
 
-function rowsOf<K extends ResourceKey>(resource: K): ResourceMap[K][] {
-  return db.records[resource];
-}
-
-function setRows<K extends ResourceKey>(resource: K, rows: ResourceMap[K][]): void {
-  // TypeScript no relaciona la clave genérica con su tipo al escribir en el mapa (sí al leer).
-  (db.records as Record<ResourceKey, unknown[]>)[resource] = rows;
+function current(): MockDatabase {
+  db ??= load();
+  return db;
 }
 
 export const mockDb = {
   state(): DatasetState {
-    return db.state;
+    return current().state;
   },
 
-  list<K extends ResourceKey>(resource: K): ResourceMap[K][] {
-    return structuredClone(rowsOf(resource));
+  /** Lectura aislada: lo que devuelve se puede modificar sin tocar la base. */
+  read<T>(fn: (store: Store) => T): T {
+    return structuredClone(fn(createStore(current())));
   },
 
-  insert<K extends ResourceKey>(resource: K, values: Omit<ResourceMap[K], 'id'>): ResourceMap[K] {
-    const row = { ...values, id: crypto.randomUUID() } as ResourceMap[K];
-    setRows(resource, [row, ...rowsOf(resource)]);
-    touch();
-    return structuredClone(row);
+  /**
+   * Escritura atómica: trabaja sobre una copia y solo la guarda si `fn` termina sin error,
+   * así una regla de negocio que falla a mitad de camino no deja datos a medias.
+   * `bookkeeping` marca escrituras internas (como el último acceso) que no cuentan como cambio de los datos.
+   */
+  transaction<T>(fn: (store: Store) => T, { bookkeeping = false } = {}): T {
+    const draft = structuredClone(current());
+    const result = fn(createStore(draft));
+    if (!bookkeeping && draft.state === 'demo') draft.state = 'modified';
+    db = draft;
+    persist(draft);
+    return structuredClone(result);
   },
 
-  update<K extends ResourceKey>(
-    resource: K,
-    id: string,
-    patch: Partial<Omit<ResourceMap[K], 'id'>>,
-  ): ResourceMap[K] {
-    const current = rowsOf(resource).find((row) => row.id === id);
-    if (!current) throw new Error('El registro ya no existe.');
-    const updated: ResourceMap[K] = { ...current, ...patch, id };
-    setRows(
-      resource,
-      rowsOf(resource).map((row) => (row.id === id ? updated : row)),
-    );
-    touch();
-    return structuredClone(updated);
-  },
-
-  remove(resource: ResourceKey, id: string): void {
-    setRows(
-      resource,
-      rowsOf(resource).filter((row) => row.id !== id),
-    );
-    touch();
-  },
-
-  dashboard(): DashboardSummary {
-    return structuredClone(db.dashboard);
-  },
-
-  alerts(): BusinessAlert[] {
-    return structuredClone(db.alerts);
-  },
-
-  /** Vuelve a los datos de demostración originales. */
+  /** Vuelve a los datos de demostración, generados hasta hoy. */
   reset(): void {
-    db = demoDatabase();
-    persist();
+    db = buildDemoDatabase();
+    persist(db);
   },
 
-  /** Deja el sistema sin ningún registro. */
+  /** Deja el sistema sin operaciones; conserva usuarios, roles y configuración. */
   clear(): void {
-    db = emptyDatabase();
-    persist();
+    const previous = current();
+    const empty = baseDatabase();
+    empty.records.usuarios = previous.records.usuarios;
+    empty.records.roles = previous.records.roles;
+    empty.settings = previous.settings;
+    db = empty;
+    persist(empty);
   },
 };

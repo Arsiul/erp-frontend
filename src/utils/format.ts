@@ -57,7 +57,7 @@ export function formatChange(percent: number): string {
 
 /** Recibe una fecha ISO (YYYY-MM-DD) y la interpreta como fecha local, sin desfase de zona horaria. */
 export function formatDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
+  const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number);
   if (year === undefined || month === undefined || day === undefined) return isoDate;
   return dateFormatter.format(new Date(year, month - 1, day));
 }

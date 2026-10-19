@@ -3,10 +3,10 @@ import { Link } from 'react-router';
 
 import { SPRING_SNAPPY } from '@/components/motion-presets';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { NAVIGATION } from '@/config/navigation';
+import { useSession } from '@/hooks/useSession';
 import type { NavGroup } from '@/types/navigation';
 import { cn } from '@/utils/cn';
-import { getGroupEntryPath } from '@/utils/navigation';
+import { getGroupEntryPath, visibleNavigation } from '@/utils/navigation';
 
 export interface IconRailProps {
   activeGroupId: string | undefined;
@@ -21,10 +21,12 @@ const ITEM_CLASS =
   'relative flex size-11 cursor-pointer items-center justify-center rounded-xl text-white/65 transition-colors duration-150 hover:bg-rail-hover hover:text-white focus-visible:outline-white';
 
 export function IconRail({ activeGroupId, onGroupSelect }: IconRailProps) {
+  const { can } = useSession();
+  const groups = visibleNavigation((module) => can(module));
   return (
     <nav aria-label="Módulos" className="flex w-18 shrink-0 flex-col items-center bg-rail py-4">
       <ul className="flex flex-col items-center gap-1.5">
-        {NAVIGATION.map((group) => {
+        {groups.map((group) => {
           const isActive = group.id === activeGroupId;
           const Icon = group.icon;
           const content = (
