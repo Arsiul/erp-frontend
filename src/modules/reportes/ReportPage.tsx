@@ -5,7 +5,6 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { DataTable } from '@/components/data-table/DataTable';
 import type { Column } from '@/components/data-table/types';
-import { DemoDataBadge } from '@/components/DemoDataBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -108,7 +107,6 @@ export function ReportPage({ report, group, item }: ReportPageProps) {
           { label: group.label, to: getGroupEntryPath(group) },
           { label: item.label },
         ]}
-        actions={<DemoDataBadge />}
       />
 
       <Card className="flex flex-wrap items-end gap-4 px-5 py-4">

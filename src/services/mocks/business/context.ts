@@ -37,9 +37,7 @@ export function addDays(iso: string, days: number): string {
   return isoDate(new Date(year, month - 1, day + days));
 }
 
-export function round2(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
+export { round2 } from '@/utils/money';
 
 /** Texto obligatorio: devuelve el valor recortado o falla con el mensaje. */
 export function requireText(value: unknown, message: string): string {

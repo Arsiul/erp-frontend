@@ -286,28 +286,4 @@ describe('acciones sobre registros', () => {
     expect(table.querySelectorAll('tbody tr')[1]).not.toHaveTextContent('Nuevo');
     expect(mockDb.read((store) => store.unseen('proveedores'))).toEqual([older.id]);
   });
-
-  it('limpia todos los datos y vuelve a cargar los simulados desde la cabecera', async () => {
-    const product = demo((store) => store.list('productos')[0], 'productos');
-    const { user } = renderApp('/maestros/productos');
-    await screen.findByRole('table', { name: 'Productos' });
-
-    expect(screen.getByRole('button', { name: 'Cargar datos simulados' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Limpiar datos' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Limpiar datos' }),
-    );
-
-    expect(await screen.findByText('Aún no hay productos')).toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'Productos' })).not.toBeInTheDocument();
-
-    expect(screen.getByRole('button', { name: 'Limpiar datos' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Cargar datos simulados' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cargar datos' }),
-    );
-
-    expect(await screen.findByRole('table', { name: 'Productos' })).toBeInTheDocument();
-    expect(screen.getByText(product.name)).toBeInTheDocument();
-  });
 });

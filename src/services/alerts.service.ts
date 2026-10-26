@@ -3,6 +3,10 @@ import type { BusinessAlert } from '@/types/alerts';
 import { daysBetween, isOverdue, todayIso } from '@/utils/dates';
 import { formatCurrency } from '@/utils/format';
 
+import type { ResourceKey } from '@/types/resources';
+
+import { api } from './http/client';
+import { USE_API } from './http/config';
 import { withLatency } from './mocks/latency';
 import { mockDb } from './mocks/mock-db';
 import type { Store } from './mocks/store';
@@ -122,8 +126,20 @@ function inventarioAlerts(store: Store): BusinessAlert[] {
 const SEVERITY_ORDER = { critical: 0, warning: 1, info: 2 } as const;
 
 /** Alertas calculadas desde los registros, solo de los módulos que el rol puede consultar. */
+/** Alerta tal como llega de GET /alerts: con `path` o con el `resource` al que lleva. */
+type RemoteAlert = Omit<BusinessAlert, 'path'> & { path?: string; resource?: ResourceKey };
+
+async function remoteAlerts(): Promise<BusinessAlert[]> {
+  const alerts = await api.get<RemoteAlert[]>('/alerts');
+  return alerts.map(({ resource, path, ...alert }) => ({
+    ...alert,
+    path: path ?? (resource ? resourcePath(resource) : '/'),
+  }));
+}
+
 export const alertsService = {
   getActive(): Promise<BusinessAlert[]> {
+    if (USE_API) return remoteAlerts();
     return withLatency(() => {
       const today = todayIso();
       return mockDb.read((store) =>

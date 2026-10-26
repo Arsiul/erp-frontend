@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/data-table/DataTable';
-import { DemoDataBadge } from '@/components/DemoDataBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -345,7 +344,6 @@ export function ResourceListPage<K extends ResourceKey>({
           { label: group.label, to: getGroupEntryPath(group) },
           { label: item.label },
         ]}
-        actions={<DemoDataBadge />}
       />
 
       <Card className="overflow-hidden">

@@ -14,7 +14,7 @@ const LEVEL_RANK: Record<AccessLevel, number> = { none: 0, read: 1, write: 2 };
 export function useSession() {
   const { data: session } = useQuery({
     queryKey: queryKeys.session,
-    queryFn: () => sessionService.current(),
+    queryFn: () => sessionService.load(),
     initialData: () => sessionService.current(),
     staleTime: Infinity,
   });

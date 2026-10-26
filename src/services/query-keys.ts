@@ -5,7 +5,6 @@ import type { ResourceKey } from '@/types/resources';
 export const queryKeys = {
   session: ['session'] as const,
   settings: ['settings'] as const,
-  datasetState: ['dataset', 'state'] as const,
   dashboardSummary: ['dashboard', 'summary'] as const,
   alerts: ['alerts', 'active'] as const,
   report: (report: ReportId, filters: ReportFilters) => ['reports', report, filters] as const,

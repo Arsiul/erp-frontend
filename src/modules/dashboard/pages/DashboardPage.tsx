@@ -2,7 +2,6 @@ import { CircleAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { fadeInUp, staggerContainer } from '@/components/motion-presets';
-import { DemoDataBadge } from '@/components/DemoDataBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -32,7 +31,6 @@ export function DashboardPage() {
             : `Resumen del negocio · ${COMPANY_INFO.name}`
         }
         breadcrumbs={[{ label: 'Inicio', to: '/' }, { label: 'Panel general' }]}
-        actions={<DemoDataBadge />}
       />
 
       {isPending ? (

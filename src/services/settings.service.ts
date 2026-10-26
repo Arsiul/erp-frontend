@@ -1,5 +1,7 @@
 import type { Settings } from '@/types/administracion';
 
+import { api } from './http/client';
+import { USE_API } from './http/config';
 import { BusinessError } from './mocks/business';
 import { isoDateTime } from './mocks/business/context';
 import { withLatency } from './mocks/latency';
@@ -59,10 +61,12 @@ export function validateSettings(values: Settings): Settings {
 /** Datos de la empresa y parámetros de facturación (IGV, series, vigencia de cotizaciones). */
 export const settingsService = {
   get(): Promise<Settings> {
+    if (USE_API) return api.get<Settings>('/settings');
     return withLatency(() => mockDb.read((store) => store.settings()));
   },
 
   save(values: Settings): Promise<Settings> {
+    if (USE_API) return api.put<Settings>('/settings', validateSettings(values));
     return withLatency(() => {
       const session = sessionService.assertAccess('administracion', 'write');
       const settings = validateSettings(values);

@@ -8,6 +8,8 @@ import type {
 } from '@/types/dashboard';
 import { isOverdue, toIsoDate } from '@/utils/dates';
 
+import { api } from './http/client';
+import { USE_API } from './http/config';
 import { withLatency } from './mocks/latency';
 import { mockDb } from './mocks/mock-db';
 import type { Store } from './mocks/store';
@@ -269,7 +271,9 @@ function topProducts(store: Store, now: Date): TopProduct[] {
  * así una venta o un cobro nuevo se refleja al volver al inicio. Solo incluye lo que el rol puede consultar.
  */
 export const dashboardService = {
+  /** Con la API: GET /dashboard/summary, con la misma forma que la base simulada. */
   getSummary(): Promise<DashboardSummary> {
+    if (USE_API) return api.get<DashboardSummary>('/dashboard/summary');
     return withLatency(() => {
       const now = new Date();
       const comercial = sessionService.can('comercial');

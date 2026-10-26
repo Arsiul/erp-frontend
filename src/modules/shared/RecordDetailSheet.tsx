@@ -1,9 +1,12 @@
 import { ArrowRight, Download, Pencil, Trash2 } from 'lucide-react';
+import type { MouseEvent } from 'react';
+import { toast } from 'sonner';
 
 import { DataCell } from '@/components/data-table/DataCell';
 import type { Column } from '@/components/data-table/types';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
+import { isServerFile, saveServerFile } from '@/services/resources.service';
 import type { DocumentLine } from '@/types/comercial';
 import { cn } from '@/utils/cn';
 import { formatCurrency, formatDecimal } from '@/utils/format';
@@ -43,6 +46,15 @@ function linesOf(row: unknown): DocumentLine[] {
 }
 
 /** Archivo descargable, si el registro es un documento con contenido guardado. */
+/** Un archivo del servidor se descarga con el token; un data URL local, con el enlace directo. */
+function downloadFile(event: MouseEvent<HTMLAnchorElement>, file: { name: string; content: string }) {
+  if (!isServerFile(file.content)) return;
+  event.preventDefault();
+  saveServerFile(file.content, file.name).catch((error: unknown) => {
+    toast.error(error instanceof Error ? error.message : 'No se pudo descargar el archivo.');
+  });
+}
+
 function fileOf(row: unknown): { name: string; content: string } | undefined {
   if (typeof row !== 'object' || row === null) return undefined;
   if (!('content' in row) || !('fileName' in row)) return undefined;
@@ -136,6 +148,9 @@ export function RecordDetailSheet<T>({
               <a
                 href={file.content}
                 download={file.name}
+                onClick={(event) => {
+                  downloadFile(event, file);
+                }}
                 className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-ink-muted transition-colors hover:bg-surface hover:text-ink"
               >
                 <Download className="size-4" aria-hidden />

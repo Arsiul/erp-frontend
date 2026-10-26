@@ -1,5 +1,7 @@
 import { RESOURCE_MODULE, type ResourceKey, type ResourceMap } from '@/types/resources';
 
+import { remote } from './http/resources.remote';
+import { USE_API } from './http/config';
 import * as business from './mocks/business';
 import { withLatency } from './mocks/latency';
 import { mockDb } from './mocks/mock-db';
@@ -25,10 +27,10 @@ function write<T>(
 
 /**
  * Lectura, registro y acciones de proceso de cada recurso.
- * Hoy resuelve todo sobre la base simulada del navegador; con la API cada llamada pasa a su endpoint
- * (ej.: ventas → POST /api/v1/sales/{id}/invoice) sin cambiar estas firmas.
+ * Con la API cada llamada pasa a su endpoint (ej.: POST /ventas/{id}/invoice); sin ella resuelve
+ * todo sobre la base simulada del navegador. Las firmas son las mismas en ambos casos.
  */
-export const resourcesService = {
+const mockResources = {
   list<K extends ResourceKey>(resource: K): Promise<ResourceMap[K][]> {
     return withLatency(() => {
       sessionService.assertAccess(RESOURCE_MODULE[resource], 'read');
@@ -98,3 +100,8 @@ export const resourcesService = {
     return { create: false, update: false, remove: false, actions: [] };
   },
 };
+
+/** Descarga de archivos guardados en el servidor (el token no viaja en un href). */
+export { isServerFile, saveServerFile } from './http/resources.remote';
+
+export const resourcesService: typeof mockResources = USE_API ? remote : mockResources;

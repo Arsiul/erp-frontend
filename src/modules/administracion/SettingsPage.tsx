@@ -3,7 +3,6 @@ import { CircleAlert, Save } from 'lucide-react';
 import { useState, type SubmitEvent } from 'react';
 import { toast } from 'sonner';
 
-import { DemoDataBadge } from '@/components/DemoDataBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -187,7 +186,6 @@ export function SettingsPage({ group, item }: SettingsPageProps) {
           { label: group.label, to: getGroupEntryPath(group) },
           { label: item.label },
         ]}
-        actions={<DemoDataBadge />}
       />
       {settings.isPending ? (
         <div className="space-y-4" role="status" aria-label="Cargando configuración">

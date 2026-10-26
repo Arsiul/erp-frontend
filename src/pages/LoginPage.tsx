@@ -1,5 +1,5 @@
 import { LogIn } from 'lucide-react';
-import { useMemo, useState, type SubmitEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/Button';
@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/Card';
 import { useLogin, useSession } from '@/hooks/useSession';
 import { Brand } from '@/layouts/AppLayout/Brand';
 import { inputClass } from '@/modules/shared/form-styles';
-import { DEMO_PASSWORD, sessionService } from '@/services/session.service';
 
 /** Ruta a la que volver tras iniciar sesión (solo rutas internas). */
 function returnPath(state: unknown): string {
@@ -17,14 +16,13 @@ function returnPath(state: unknown): string {
     : '/';
 }
 
-/** Acceso simulado: cualquier usuario activo con la contraseña de la demo. */
+/** Acceso con correo y contraseña. */
 export function LoginPage() {
   const { session } = useSession();
   const login = useLogin();
   const navigate = useNavigate();
   const location = useLocation();
-  const accounts = useMemo(() => sessionService.demoAccounts(), []);
-  const [email, setEmail] = useState(() => accounts[0]?.email ?? '');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const target = returnPath(location.state);
 
@@ -51,7 +49,6 @@ export function LoginPage() {
         <Card className="space-y-5 px-6 py-6">
           <div>
             <h1 className="text-lg font-semibold text-ink">Iniciar sesión</h1>
-            <p className="text-sm text-ink-muted">Entorno de demostración con datos simulados.</p>
           </div>
           <form onSubmit={submit} className="space-y-4" noValidate>
             <label className="grid gap-1.5 text-sm font-medium text-ink">
@@ -92,38 +89,6 @@ export function LoginPage() {
               {login.isPending ? 'Ingresando…' : 'Ingresar'}
             </Button>
           </form>
-        </Card>
-
-        <Card className="px-6 py-5">
-          <p className="text-sm text-ink">
-            Contraseña para todas las cuentas:{' '}
-            <code className="font-semibold">{DEMO_PASSWORD}</code>
-          </p>
-          <p className="mt-1 text-xs text-ink-muted">
-            Elige una cuenta para probar los permisos de cada rol.
-          </p>
-          <ul className="mt-3 divide-y divide-line">
-            {accounts.map((account) => (
-              <li key={account.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm hover:text-primary-700"
-                  onClick={() => {
-                    setEmail(account.email);
-                    setPassword(DEMO_PASSWORD);
-                  }}
-                >
-                  <span>
-                    <span className="block font-medium text-ink">{account.name}</span>
-                    <span className="block text-xs text-ink-subtle">{account.email}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-semibold text-ink-muted">
-                    {account.roleName}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
         </Card>
       </div>
     </main>

@@ -5,7 +5,6 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 import { Brand } from './Brand';
-import { DemoDataControls } from './DemoDataControls';
 import { GlobalSearch } from './GlobalSearch';
 import { NotificationsMenu } from './NotificationsMenu';
 import { QuickCreateMenu } from './QuickCreateMenu';
@@ -70,7 +69,6 @@ export function Header({
         <NotificationsMenu />
 
         <div className="ml-auto flex items-center gap-3">
-          <DemoDataControls />
           <QuickCreateMenu />
           <div className="hidden w-64 md:block lg:w-72">
             <GlobalSearch />

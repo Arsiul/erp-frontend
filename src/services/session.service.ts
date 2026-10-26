@@ -1,6 +1,14 @@
 import type { AccessLevel, ModuleId, Permissions, Role, User } from '@/types/administracion';
 
-import { BusinessError, type BusinessContext } from './mocks/business';
+import type { ResourceKey } from '@/types/resources';
+
+import { api, configureSession, request, setAccessToken, type TokenResponse } from './http/client';
+import { USE_API } from './http/config';
+import {
+  BusinessError,
+  type BusinessContext,
+  type ResourceCapabilities,
+} from './mocks/business';
 import { isoDateTime } from './mocks/business/context';
 import { withLatency } from './mocks/latency';
 import { mockDb } from './mocks/mock-db';
@@ -8,12 +16,18 @@ import { mockDb } from './mocks/mock-db';
 /**
  * Sesión simulada: guarda solo el id del usuario y resuelve rol y permisos en cada lectura,
  * así un cambio de rol o una desactivación se aplica sin volver a iniciar sesión.
- * Con el backend, esto pasa a ser el token y el perfil que devuelva /auth.
  */
 const SESSION_KEY = 'erp.session';
 
-/** Contraseña única de la demo para todos los usuarios. */
-export const DEMO_PASSWORD = 'demo';
+/**
+ * Con la API: el access token vive solo en memoria (http/client) y el refresh token en una cookie
+ * httpOnly. Aquí se guarda únicamente el perfil (usuario, rol, permisos y capacidades, sin tokens)
+ * para que menús y permisos se resuelvan de forma síncrona tras una recarga.
+ */
+const PROFILE_KEY = 'erp.profile';
+
+/** Contraseña de la base simulada (solo pruebas y desarrollo sin backend). */
+const MOCK_PASSWORD = 'demo';
 
 export interface Session {
   user: User;
@@ -40,6 +54,51 @@ function storeUserId(userId: string | null): void {
   }
 }
 
+type Capabilities = Partial<Record<ResourceKey, ResourceCapabilities>>;
+
+interface Profile {
+  session: Session;
+  capabilities: Capabilities;
+}
+
+/** Respuesta de GET /auth/me. */
+type MeResponse = Session & { capabilities: Capabilities };
+
+function readProfile(): Profile | null {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as Profile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeProfile(profile: Profile | null): void {
+  try {
+    if (profile) window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    else window.localStorage.removeItem(PROFILE_KEY);
+  } catch {
+    // Sin almacenamiento: el perfil no sobrevive a una recarga.
+  }
+}
+
+function profileOf({ capabilities, user, role, permissions }: MeResponse): Profile {
+  return { session: { user, role, permissions }, capabilities };
+}
+
+if (USE_API) {
+  configureSession({
+    renewed: (session) => {
+      const profile = readProfile();
+      if (profile) storeProfile({ ...profile, session: session as Session });
+    },
+    ended: () => {
+      storeProfile(null);
+      if (window.location.pathname !== '/login') window.location.assign('/login');
+    },
+  });
+}
+
 function resolve(userId: string): Session | null {
   return mockDb.read((store) => {
     const user = store.get('usuarios', userId);
@@ -52,17 +111,44 @@ function resolve(userId: string): Session | null {
 
 export const sessionService = {
   current(): Session | null {
+    if (USE_API) return readProfile()?.session ?? null;
     const userId = storedUserId();
     return userId ? resolve(userId) : null;
   },
 
-  login(email: string, password: string): Promise<Session> {
+  /** Vuelve a leer el perfil (tras cambiar usuarios o roles); sin sesión devuelve null. */
+  async load(): Promise<Session | null> {
+    if (!USE_API) return sessionService.current();
+    if (!readProfile()) return null;
+    try {
+      storeProfile(profileOf(await api.get<MeResponse>('/auth/me')));
+    } catch {
+      // Sin conexión se conserva el perfil guardado; una sesión vencida ya lo limpió.
+    }
+    return sessionService.current();
+  },
+
+  /** Capacidades del recurso para el rol actual, según el backend. */
+  capabilitiesOf(resource: ResourceKey): ResourceCapabilities | undefined {
+    return readProfile()?.capabilities[resource];
+  },
+
+  async login(email: string, password: string): Promise<Session> {
+    if (USE_API) {
+      const issued = await request<TokenResponse<Session>>('POST', '/auth/login', {
+        body: { email: email.trim(), password },
+        auth: false,
+      });
+      setAccessToken(issued.accessToken);
+      storeProfile(profileOf(await api.get<MeResponse>('/auth/me')));
+      return sessionService.current() ?? fail();
+    }
     return withLatency(() => {
       const normalized = email.trim().toLowerCase();
       const user = mockDb.read((store) =>
         store.list('usuarios').find((row) => row.email.toLowerCase() === normalized),
       );
-      if (!user || password !== DEMO_PASSWORD)
+      if (!user || password !== MOCK_PASSWORD)
         throw new BusinessError('Correo o contraseña incorrectos.');
       if (user.status !== 'active')
         throw new BusinessError('Tu usuario está desactivado. Pide acceso a un administrador.');
@@ -78,20 +164,17 @@ export const sessionService = {
   },
 
   logout(): void {
+    if (USE_API) {
+      setAccessToken(null);
+      storeProfile(null);
+      // Revoca el refresh token; la pantalla no espera la respuesta.
+      void request('POST', '/auth/logout', { auth: false }).catch(() => undefined);
+      return;
+    }
     storeUserId(null);
   },
 
-  /** Cuentas activas que la pantalla de acceso ofrece para probar cada rol. */
-  demoAccounts(): Pick<User, 'id' | 'name' | 'email' | 'roleName'>[] {
-    return mockDb.read((store) =>
-      store
-        .list('usuarios')
-        .filter((user) => user.status === 'active')
-        .map(({ id, name, email, roleName }) => ({ id, name, email, roleName })),
-    );
-  },
-
-  /** Inicia sesión sin esperas ni contraseña (pruebas y arranque de la demo). */
+  /** Inicia sesión sin esperas ni contraseña en la base simulada (pruebas). */
   signInAs(userId: string): void {
     storeUserId(userId);
   },

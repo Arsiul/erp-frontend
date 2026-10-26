@@ -9,6 +9,8 @@ import type {
 } from '@/types/reports';
 import { daysBetween, todayIso } from '@/utils/dates';
 
+import { api } from './http/client';
+import { USE_API } from './http/config';
 import { withLatency } from './mocks/latency';
 import { mockDb } from './mocks/mock-db';
 import type { Store } from './mocks/store';
@@ -312,6 +314,7 @@ function filterSpec(store: Store, report: ReportId): ReportFilterSpec {
 /** Reportes calculados al momento desde los mismos registros que los listados. */
 export const reportsService = {
   filters(report: ReportId): Promise<ReportFilterSpec> {
+    if (USE_API) return api.get<ReportFilterSpec>(`/reports/${report}/filters`);
     return withLatency(() => {
       sessionService.assertAccess('reportes', 'read');
       return mockDb.read((store) => filterSpec(store, report));
@@ -319,6 +322,10 @@ export const reportsService = {
   },
 
   run(report: ReportId, filters: ReportFilters): Promise<ReportResult> {
+    if (USE_API) {
+      const { from, to, party } = filters;
+      return api.get<ReportResult>(`/reports/${report}`, { from, to, party });
+    }
     return withLatency(() => {
       sessionService.assertAccess('reportes', 'read');
       return mockDb.read((store) => BUILDERS[report](store, filters));
