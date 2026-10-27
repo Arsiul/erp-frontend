@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, Download, Info, Plus, Search, SearchX } from 'lucide-react';
+import { CircleAlert, Download, Info, Plus, Search, SearchX, Upload } from 'lucide-react';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import { useSession } from '@/hooks/useSession';
 import { isListResource, LIST_DEFINITIONS } from '@/modules/list-registry';
 import { queryKeys } from '@/services/query-keys';
 import { resourcesService, type ResourceValues } from '@/services/resources.service';
+import { transferService } from '@/services/transfer.service';
 import type { NavGroup, NavItem } from '@/types/navigation';
 import type { ResourceKey, ResourceMap } from '@/types/resources';
 import { downloadCsv, toCsv } from '@/utils/csv';
@@ -24,6 +25,7 @@ import { matchesSearch } from '@/utils/text';
 
 import { createValues } from './create-values';
 import { FlowCreateSheet } from './FlowCreateSheet';
+import { ImportCsvDialog } from './ImportCsvDialog';
 import type { FieldValues, FlowAction, ProcessAction } from './list-definition';
 import { recordActions, roleCapabilities } from './record-actions';
 import { RecordDetailSheet } from './RecordDetailSheet';
@@ -112,6 +114,8 @@ export function ResourceListPage<K extends ResourceKey>({
   const [inlineFlow, setInlineFlow] = useState<InlineFlowState>();
   const [isInlineFlowOpen, setIsInlineFlowOpen] = useState(false);
   const [inlineSession, setInlineSession] = useState(0);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const canImport = transferService.canImport(resource) && capabilities.create;
 
   // Lo recién registrado va arriba hasta que se abre; el resto conserva su orden.
   const rows = (data ?? [])
@@ -284,8 +288,32 @@ export function ResourceListPage<K extends ResourceKey>({
     toast.success(`Registro creado: ${definition.rowTitle(created)}`);
   }
 
+  async function saveBlob(fileName: string, load: () => Promise<Blob>) {
+    try {
+      const url = URL.createObjectURL(await load());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
+  // Con API, el backend exporta con sus relaciones (códigos de cliente, SKU…), importable de nuevo.
   function exportCsv() {
+    if (transferService.canExport(resource)) {
+      void saveBlob(`${resource}-${todayIso()}.csv`, () => transferService.exportCsv(resource));
+      return;
+    }
     downloadCsv(`${item.id}-${todayIso()}.csv`, toCsv(definition.columns, rows));
+  }
+
+  function downloadTemplate() {
+    void saveBlob(`${resource}-plantilla.csv`, () => transferService.template(resource));
   }
 
   const confirmCopy = (() => {
@@ -373,10 +401,22 @@ export function ResourceListPage<K extends ResourceKey>({
                   : `${String(total)} ${total === 1 ? 'registro' : 'registros'}`}
               </p>
             )}
-            <Button variant="soft" disabled={rows.length === 0} onClick={exportCsv}>
+            <Button variant="soft" disabled={total === 0} onClick={exportCsv}>
               <Download className="size-4" aria-hidden />
               Exportar
             </Button>
+            {canImport && (
+              <Button
+                variant="soft"
+                disabled={isPending || isError}
+                onClick={() => {
+                  setIsImportOpen(true);
+                }}
+              >
+                <Upload className="size-4" aria-hidden />
+                Importar
+              </Button>
+            )}
             {createButton}
           </div>
         </div>
@@ -503,6 +543,16 @@ export function ResourceListPage<K extends ResourceKey>({
           onOpenChange={setIsInlineFlowOpen}
           initialValues={inlineFlow.initialValues}
           description={inlineFlow.description}
+        />
+      )}
+
+      {canImport && (
+        <ImportCsvDialog
+          open={isImportOpen}
+          onOpenChange={setIsImportOpen}
+          resource={resource}
+          label={item.label}
+          onTemplate={downloadTemplate}
         />
       )}
 
