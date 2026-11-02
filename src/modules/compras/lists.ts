@@ -121,16 +121,42 @@ export const COMPRAS_LISTS: ListDefinitionsFor<
         success: (row) => `${row.number} quedó aprobada; ya puedes recibir la mercadería.`,
       },
       {
+        id: 'reject',
+        label: 'Rechazar orden',
+        tone: 'danger',
+        when: (row) => row.status === 'draft',
+        confirm: {
+          title: 'Rechazar orden de compra',
+          description: (row) => `${row.number} de ${row.supplierName} quedará rechazada.`,
+          confirmLabel: 'Rechazar',
+          reason: {
+            label: 'Motivo del rechazo',
+            placeholder: 'Ej.: precios por encima de lo presupuestado',
+          },
+        },
+        success: (row) => `${row.number} quedó rechazada.`,
+      },
+      {
         id: 'cancel',
         label: 'Anular orden',
         tone: 'danger',
-        when: (row) => row.status === 'draft' || row.status === 'approved',
+        when: (row) => row.status === 'approved',
         confirm: {
           title: 'Anular orden de compra',
           description: (row) => `${row.number} de ${row.supplierName} quedará anulada.`,
           confirmLabel: 'Anular',
+          reason: {
+            label: 'Motivo de la anulación',
+            placeholder: 'Ej.: el proveedor no tiene stock',
+          },
         },
         success: (row) => `${row.number} quedó anulada.`,
+      },
+    ],
+    detailNotes: (row) => [
+      {
+        label: row.status === 'rejected' ? 'Motivo de rechazo' : 'Motivo de anulación',
+        value: row.cancelReason,
       },
     ],
     flowActions: [

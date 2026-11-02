@@ -100,6 +100,7 @@ export const PURCHASE_ORDER_STATUS: Record<PurchaseOrderStatus, BadgeValue> = {
   partial: { label: 'Recibida en parte', tone: 'warning' },
   received: { label: 'Recibida', tone: 'success' },
   cancelled: { label: 'Anulada', tone: 'neutral' },
+  rejected: { label: 'Rechazada', tone: 'danger' },
 };
 
 export const RECEIPT_STATUS: Record<ReceiptStatus, BadgeValue> = {

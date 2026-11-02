@@ -28,8 +28,8 @@ export function useResourceMutations<K extends ResourceKey>(resource: K) {
   });
 
   const runAction = useMutation({
-    mutationFn: ({ id, actionId }: { id: string; actionId: string }) =>
-      resourcesService.runAction(resource, id, actionId),
+    mutationFn: ({ id, actionId, reason }: { id: string; actionId: string; reason?: string | undefined }) =>
+      resourcesService.runAction(resource, id, actionId, reason),
     onSuccess: refresh,
   });
 

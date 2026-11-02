@@ -111,3 +111,34 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Impresión / "Guardar como PDF": solo sale el comprobante, sin menú ni cabecera de la app. */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body:has(#invoice-print) * {
+    visibility: hidden;
+  }
+
+  #invoice-print,
+  #invoice-print * {
+    visibility: visible;
+    print-color-adjust: exact;
+  }
+
+  #invoice-print {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+  }
+}

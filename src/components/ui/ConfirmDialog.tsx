@@ -1,12 +1,14 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { LoaderCircle, TriangleAlert } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { EASE_OUT_SOFT } from '@/components/motion-presets';
 import { cn } from '@/utils/cn';
 
 import { buttonClassName } from './button-styles';
+
+const REASON_MAX_LENGTH = 500;
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -15,8 +17,10 @@ export interface ConfirmDialogProps {
   description: string;
   confirmLabel: string;
   tone?: 'default' | 'danger';
+  /** Si se define, pide un motivo obligatorio y lo pasa a `onConfirm`. */
+  reason?: { label: string; placeholder?: string | undefined } | undefined;
   /** Puede ser asíncrona: el diálogo muestra "procesando" y se cierra al terminar. */
-  onConfirm: () => Promise<void> | void;
+  onConfirm: (reason?: string) => Promise<void> | void;
 }
 
 /** Confirmación accesible para acciones importantes o irreversibles. */
@@ -27,15 +31,26 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   tone = 'default',
+  reason,
   onConfirm,
 }: ConfirmDialogProps) {
   const [isWorking, setIsWorking] = useState(false);
+  const [reasonText, setReasonText] = useState('');
+  const reasonId = useId();
+  const trimmedReason = reasonText.trim();
+  const isMissingReason = Boolean(reason) && trimmedReason === '';
+
+  function close(next: boolean) {
+    if (!next) setReasonText('');
+    onOpenChange(next);
+  }
 
   async function handleConfirm() {
+    if (isMissingReason) return;
     setIsWorking(true);
     try {
-      await onConfirm();
-      onOpenChange(false);
+      await (reason ? onConfirm(trimmedReason) : onConfirm());
+      close(false);
     } finally {
       setIsWorking(false);
     }
@@ -45,7 +60,7 @@ export function ConfirmDialog({
     <AlertDialog.Root
       open={open}
       onOpenChange={(next) => {
-        if (!isWorking) onOpenChange(next);
+        if (!isWorking) close(next);
       }}
     >
       <AnimatePresence>
@@ -79,13 +94,36 @@ export function ConfirmDialog({
                   >
                     <TriangleAlert className="size-5" aria-hidden />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <AlertDialog.Title className="text-base font-bold text-ink">
                       {title}
                     </AlertDialog.Title>
                     <AlertDialog.Description className="mt-1.5 text-sm leading-relaxed text-ink-muted">
                       {description}
                     </AlertDialog.Description>
+                    {reason && (
+                      <div className="mt-4 space-y-1.5">
+                        <label htmlFor={reasonId} className="text-xs font-semibold text-ink">
+                          {reason.label}
+                        </label>
+                        <textarea
+                          id={reasonId}
+                          value={reasonText}
+                          onChange={(event) => {
+                            setReasonText(event.target.value);
+                          }}
+                          placeholder={reason.placeholder}
+                          maxLength={REASON_MAX_LENGTH}
+                          rows={3}
+                          required
+                          disabled={isWorking}
+                          className="block w-full resize-none rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                        />
+                        <p className="text-right text-xs text-ink-subtle">
+                          {reasonText.length}/{REASON_MAX_LENGTH}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-2">
@@ -97,7 +135,7 @@ export function ConfirmDialog({
                   </AlertDialog.Cancel>
                   <button
                     type="button"
-                    disabled={isWorking}
+                    disabled={isWorking || isMissingReason}
                     onClick={() => {
                       void handleConfirm();
                     }}

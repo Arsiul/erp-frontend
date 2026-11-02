@@ -3,15 +3,27 @@ import type { ResourceKey, ResourceMap } from '@/types/resources';
 
 import type { RecordValues, Store } from '../store';
 
-import { fail, type BusinessContext } from './context';
+import { fail, requireText, type BusinessContext } from './context';
 
 /** Lo que llega de un formulario: cualquier subconjunto de campos, aún sin validar. */
 export type RecordInput<K extends ResourceKey> = Partial<RecordValues<K>>;
 
+/** Lo que acompaña a una acción: anular o rechazar exigen un motivo. */
+export interface ActionInput {
+  reason?: string | undefined;
+}
+
 export interface RecordAction<K extends ResourceKey> {
   /** Verbo que queda en la auditoría ("Aprobó", "Anuló"…). */
   label: string;
-  run: (store: Store, ctx: BusinessContext, current: ResourceMap[K]) => void;
+  run: (store: Store, ctx: BusinessContext, current: ResourceMap[K], input: ActionInput) => void;
+}
+
+/** Mismas reglas que el servidor: texto obligatorio de hasta 500 caracteres. */
+export function requireReason(input: ActionInput): string {
+  const reason = requireText(input.reason, 'Indica el motivo.');
+  if (reason.length > 500) fail('El motivo admite hasta 500 caracteres.');
+  return reason;
 }
 
 /**

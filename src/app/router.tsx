@@ -5,6 +5,7 @@ import { NAVIGATION } from '@/config/navigation';
 import { AppLayout } from '@/layouts/AppLayout/AppLayout';
 import { SettingsPage } from '@/modules/administracion/SettingsPage';
 import { ReportPage } from '@/modules/reportes/ReportPage';
+import { InvoicePage } from '@/modules/comercial/InvoicePage';
 import { ResourceListPage } from '@/modules/shared/ResourceListPage';
 import type { NavGroup, NavItem } from '@/types/navigation';
 import { AppLoader } from '@/pages/AppLoader';
@@ -49,6 +50,22 @@ const moduleRoutes: RouteObject[] = NAVIGATION.flatMap((group) => {
   ];
 });
 
+const comercialGroup = NAVIGATION.find((group) => group.id === 'comercial');
+
+/** Pantallas de detalle fuera del menú, protegidas por el permiso de su grupo. */
+const detailRoutes: RouteObject[] = comercialGroup
+  ? [
+      {
+        path: '/comercial/comprobantes/:id',
+        element: (
+          <RequireGroup group={comercialGroup}>
+            <InvoicePage />
+          </RequireGroup>
+        ),
+      },
+    ]
+  : [];
+
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
@@ -69,6 +86,7 @@ export const routes: RouteObject[] = [
         },
       },
       ...moduleRoutes,
+      ...detailRoutes,
       { path: '*', element: <NotFoundPage /> },
     ],
   },

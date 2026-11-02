@@ -1,4 +1,4 @@
-import { FileCheck2, HandCoins, ReceiptText, ShoppingCart, Undo2 } from 'lucide-react';
+import { FileCheck2, FileText, HandCoins, ReceiptText, ShoppingCart, Undo2 } from 'lucide-react';
 
 import { attachDocumentFlow } from '@/modules/shared/common-actions';
 import type { FormField, ListDefinitionsFor, LookupSource } from '@/modules/shared/list-definition';
@@ -291,10 +291,15 @@ export const COMERCIAL_LISTS: ListDefinitionsFor<
           description: (row) =>
             `${row.number} quedará anulada y la mercadería vuelve a ${row.warehouseName}.`,
           confirmLabel: 'Anular',
+          reason: {
+            label: 'Motivo de la anulación',
+            placeholder: 'Ej.: el cliente desistió de la compra',
+          },
         },
         success: (row) => `${row.number} quedó anulada.`,
       },
     ],
+    detailNotes: (row) => [{ label: 'Motivo de anulación', value: row.cancelReason }],
     flowActions: [
       {
         id: 'invoice',
@@ -305,10 +310,11 @@ export const COMERCIAL_LISTS: ListDefinitionsFor<
       },
       {
         id: 'view-invoice',
-        label: 'Ver comprobante',
+        label: 'Ver factura / PDF',
         target: 'comprobantes',
-        when: (row) => row.status === 'invoiced',
-        search: (row) => row.invoiceNumber,
+        icon: FileText,
+        when: (row) => row.status === 'invoiced' && Boolean(row.invoiceId),
+        path: (row) => `/comercial/comprobantes/${row.invoiceId}`,
       },
       attachDocumentFlow(),
     ],
@@ -400,6 +406,13 @@ export const COMERCIAL_LISTS: ListDefinitionsFor<
       },
     ],
     flowActions: [
+      {
+        id: 'view-pdf',
+        label: 'Ver / descargar PDF',
+        target: 'comprobantes',
+        icon: FileText,
+        path: (row) => `/comercial/comprobantes/${row.id}`,
+      },
       {
         id: 'credit-note',
         label: 'Emitir nota de crédito',

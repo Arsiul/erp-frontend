@@ -4,7 +4,7 @@ export interface PurchaseLine extends DocumentLine {
   receivedQuantity: number;
 }
 
-export type PurchaseOrderStatus = 'draft' | 'approved' | 'partial' | 'received' | 'cancelled';
+export type PurchaseOrderStatus = 'draft' | 'approved' | 'partial' | 'received' | 'cancelled' | 'rejected';
 
 export interface PurchaseOrder extends DocumentTotals {
   id: string;
@@ -18,6 +18,8 @@ export interface PurchaseOrder extends DocumentTotals {
   lines: PurchaseLine[];
   status: PurchaseOrderStatus;
   notes: string;
+  /** Por qué se rechazó o anuló; vacío en las demás. */
+  cancelReason: string;
 }
 
 export type ReceiptStatus = 'pending_bill' | 'billed' | 'cancelled';

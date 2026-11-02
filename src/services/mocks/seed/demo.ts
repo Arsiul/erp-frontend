@@ -297,6 +297,18 @@ const ACCOUNTS: RecordInput<'cuentas-bancarias'>[] = [
   { bank: 'Efectivo', name: 'Caja tienda', accountNumber: 'CAJA-01', openingBalance: 3000 },
 ];
 
+const SALE_CANCEL_REASONS = [
+  'El cliente desistió de la compra.',
+  'Error en las cantidades registradas.',
+  'Se registró en el almacén equivocado.',
+];
+
+const ORDER_REJECT_REASONS = [
+  'Precios por encima de la última compra.',
+  'El proveedor no confirma plazo de entrega.',
+  'Ya hay stock suficiente en el almacén.',
+];
+
 const MONTHS = [
   'enero',
   'febrero',
@@ -539,7 +551,9 @@ export function buildDemoDatabase(today: Date = new Date()): MockDatabase {
 
   function afterSale(day: number, saleId: string): void {
     if (chance(0.03)) {
-      runAction(store, ctxAt(day, 'usr-ventas'), 'ventas', saleId, 'cancel');
+      runAction(store, ctxAt(day, 'usr-ventas'), 'ventas', saleId, 'cancel', {
+        reason: pick(SALE_CANCEL_REASONS),
+      });
       return;
     }
     const invoiceDay = chance(0.7) ? day : day + 1;
@@ -702,7 +716,9 @@ export function buildDemoDatabase(today: Date = new Date()): MockDatabase {
         lines: asLines(lines),
       });
       if (chance(0.05)) {
-        runAction(store, ctxAt(day, 'usr-compras'), 'ordenes-compra', order.id, 'cancel');
+        runAction(store, ctxAt(day, 'usr-compras'), 'ordenes-compra', order.id, 'reject', {
+          reason: pick(ORDER_REJECT_REASONS),
+        });
         return;
       }
       runAction(store, ctxAt(day, 'usr-compras'), 'ordenes-compra', order.id, 'approve');

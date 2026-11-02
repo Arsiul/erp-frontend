@@ -211,9 +211,9 @@ export function ResourceListPage<K extends ResourceKey>({
     setIsConfirmOpen(true);
   }
 
-  async function runProcess(row: Row, action: ProcessAction<Row>) {
+  async function runProcess(row: Row, action: ProcessAction<Row>, reason?: string) {
     try {
-      const updated = await runAction.mutateAsync({ id: row.id, actionId: action.id });
+      const updated = await runAction.mutateAsync({ id: row.id, actionId: action.id, reason });
       toast.success(action.success(updated));
     } catch (error) {
       toast.error(errorMessage(error));
@@ -239,6 +239,11 @@ export function ResourceListPage<K extends ResourceKey>({
   }
 
   function goToFlow(row: Row, action: FlowAction<Row>) {
+    if (action.path) {
+      setIsDetailOpen(false);
+      void navigate(action.path(row));
+      return;
+    }
     if (action.inline && !action.search) {
       openInlineFlow(row, action);
       return;
@@ -255,10 +260,10 @@ export function ResourceListPage<K extends ResourceKey>({
     void navigate(`${match.item.path}?${params.toString()}`);
   }
 
-  async function confirmPending() {
+  async function confirmPending(reason?: string) {
     if (!confirmState || !confirmRow) return;
     if (confirmState.type === 'process') {
-      await runProcess(confirmRow, confirmState.action);
+      await runProcess(confirmRow, confirmState.action, reason);
       return;
     }
     const title = definition.rowTitle(confirmRow);
@@ -332,6 +337,7 @@ export function ResourceListPage<K extends ResourceKey>({
       description: action.confirm?.description(confirmRow) ?? '',
       confirmLabel: action.confirm?.confirmLabel ?? action.label,
       tone: action.tone ?? 'default',
+      reason: action.confirm?.reason,
     };
   })();
 
@@ -514,6 +520,7 @@ export function ResourceListPage<K extends ResourceKey>({
         entityLabel={entity.singular}
         row={detailRow}
         columns={definition.columns}
+        notes={detailRow && definition.detailNotes ? definition.detailNotes(detailRow) : []}
         actions={detailRow ? actionsOf(detailRow) : undefined}
         {...(detailRow
           ? handlers(detailRow)
@@ -564,6 +571,7 @@ export function ResourceListPage<K extends ResourceKey>({
           description={confirmCopy.description}
           confirmLabel={confirmCopy.confirmLabel}
           tone={confirmCopy.tone}
+          reason={'reason' in confirmCopy ? confirmCopy.reason : undefined}
           onConfirm={confirmPending}
         />
       )}

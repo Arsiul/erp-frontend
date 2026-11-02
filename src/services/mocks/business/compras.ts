@@ -12,7 +12,13 @@ import {
   requireText,
 } from './context';
 import { computeTotals, normalizeLines, totalsFromSubtotal } from './documents';
-import { requireActive, requireRecord, type RecordInput, type ResourceRules } from './rules';
+import {
+  requireActive,
+  requireReason,
+  requireRecord,
+  type RecordInput,
+  type ResourceRules,
+} from './rules';
 import { moveStock } from './stock';
 
 const costPrice = (store: Store) => (productId: string) =>
@@ -71,6 +77,7 @@ const ordenesCompra: ResourceRules<'ordenes-compra'> = {
       number: store.nextNumber('ordenes-compra', 'OC-', 5),
       ...orderValues(store, input, isoDate(ctx.now)),
       status: 'draft',
+      cancelReason: '',
     });
   },
   update(store, ctx, current, input) {
@@ -94,13 +101,22 @@ const ordenesCompra: ResourceRules<'ordenes-compra'> = {
         store.update('ordenes-compra', current.id, { status: 'approved' });
       },
     },
+    reject: {
+      label: 'Rechazó',
+      run(store, _ctx, current, input) {
+        if (current.status !== 'draft') fail('Solo se rechazan órdenes en borrador.');
+        const cancelReason = requireReason(input);
+        store.update('ordenes-compra', current.id, { status: 'rejected', cancelReason });
+      },
+    },
     cancel: {
       label: 'Anuló',
-      run(store, _ctx, current) {
+      run(store, _ctx, current, input) {
         if (current.status !== 'draft' && current.status !== 'approved') {
           fail('La orden ya recibió mercadería o está cerrada; anula sus recepciones primero.');
         }
-        store.update('ordenes-compra', current.id, { status: 'cancelled' });
+        const cancelReason = requireReason(input);
+        store.update('ordenes-compra', current.id, { status: 'cancelled', cancelReason });
       },
     },
   },

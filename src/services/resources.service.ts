@@ -89,8 +89,11 @@ const mockResources = {
     resource: K,
     id: string,
     actionId: string,
+    reason?: string,
   ): Promise<ResourceMap[K]> {
-    return write(resource, (store, ctx) => business.runAction(store, ctx, resource, id, actionId));
+    return write(resource, (store, ctx) =>
+      business.runAction(store, ctx, resource, id, actionId, { reason }),
+    );
   },
 
   /** Lo que el recurso admite y el rol actual puede hacer; sin permiso de escritura todo queda en falso. */

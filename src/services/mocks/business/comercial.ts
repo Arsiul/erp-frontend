@@ -4,7 +4,7 @@ import type { Store } from '../store';
 
 import { addDays, fail, isoDate, optionalText, requireDate, requireText, round2 } from './context';
 import { balanceStatus, computeTotals, normalizeLines } from './documents';
-import { pickEnum, requireActive, requireRecord, type ResourceRules } from './rules';
+import { pickEnum, requireActive, requireReason, requireRecord, type ResourceRules } from './rules';
 import { moveStock } from './stock';
 
 const salePrice = (store: Store) => (productId: string) =>
@@ -187,6 +187,7 @@ const ventas: ResourceRules<'ventas'> = {
       invoiceId: '',
       invoiceNumber: '',
       notes: optionalText(input.notes),
+      cancelReason: '',
     });
   },
   /** Las líneas ya movieron stock: para cambiarlas se anula la venta y se registra otra. */
@@ -216,12 +217,13 @@ const ventas: ResourceRules<'ventas'> = {
   actions: {
     cancel: {
       label: 'Anuló',
-      run(store, ctx, current) {
+      run(store, ctx, current, input) {
         if (current.status !== 'pending_invoice') {
           fail(
             'Solo se anulan ventas sin facturar; para una facturada, anula el comprobante primero.',
           );
         }
+        const cancelReason = requireReason(input);
         for (const line of current.lines) {
           moveStock(store, ctx, {
             productId: line.productId,
@@ -234,7 +236,7 @@ const ventas: ResourceRules<'ventas'> = {
         if (current.quoteId && store.get('cotizaciones', current.quoteId)) {
           store.update('cotizaciones', current.quoteId, { status: 'accepted', saleNumber: '' });
         }
-        store.update('ventas', current.id, { status: 'cancelled' });
+        store.update('ventas', current.id, { status: 'cancelled', cancelReason });
       },
     },
   },

@@ -11,7 +11,7 @@ import type { DocumentLine } from '@/types/comercial';
 import { cn } from '@/utils/cn';
 import { formatCurrency, formatDecimal } from '@/utils/format';
 
-import type { FlowAction, ProcessAction } from './list-definition';
+import type { DetailNote, FlowAction, ProcessAction } from './list-definition';
 import { hasAnyAction, type RecordActions } from './record-actions';
 
 export interface RecordDetailSheetProps<T> {
@@ -21,6 +21,8 @@ export interface RecordDetailSheetProps<T> {
   entityLabel: string;
   row: T | undefined;
   columns: readonly Column<T>[];
+  /** Datos extra que no son columnas; los vacíos se omiten. */
+  notes?: readonly DetailNote[];
   actions: RecordActions<T> | undefined;
   onEdit: () => void;
   onRemove: () => void;
@@ -115,6 +117,7 @@ export function RecordDetailSheet<T>({
   entityLabel,
   row,
   columns,
+  notes = [],
   actions,
   onEdit,
   onRemove,
@@ -204,6 +207,14 @@ export function RecordDetailSheet<T>({
                 </dd>
               </div>
             ))}
+            {notes
+              .filter((note) => note.value.trim() !== '')
+              .map((note) => (
+                <div key={note.label} className="grid grid-cols-[9rem_1fr] items-start gap-4 py-3">
+                  <dt className="text-xs font-semibold text-ink-subtle">{note.label}</dt>
+                  <dd className="min-w-0 text-sm whitespace-pre-line text-ink">{note.value}</dd>
+                </div>
+              ))}
           </dl>
           {lines.length > 0 && <LinesTable lines={lines} />}
         </>

@@ -9,7 +9,7 @@ import { fail, isoDateTime, type BusinessContext } from './context';
 import { documentosRules } from './documentos';
 import { inventarioRules } from './inventario';
 import { maestrosRules } from './maestros';
-import type { RecordInput, ResourceRules } from './rules';
+import type { ActionInput, RecordInput, ResourceRules } from './rules';
 import { tesoreriaRules } from './tesoreria';
 
 export { BusinessError, type BusinessContext } from './context';
@@ -130,10 +130,11 @@ export function runAction<K extends ResourceKey>(
   resource: K,
   id: string,
   actionId: string,
+  input: ActionInput = {},
 ): ResourceMap[K] {
   const action =
     rulesFor(resource).actions?.[actionId] ?? fail('La acción no existe para este registro.');
-  action.run(store, ctx, currentRecord(store, resource, id));
+  action.run(store, ctx, currentRecord(store, resource, id), input);
   const updated = currentRecord(store, resource, id);
   audit(store, ctx, resource, action.label, updated);
   return updated;

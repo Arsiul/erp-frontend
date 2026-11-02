@@ -35,7 +35,7 @@ describe('registro de listados', () => {
   it('cada paso siguiente que abre un formulario llega con el registro de origen cargado', () => {
     const missing = definitions.flatMap(([resource, d]) =>
       (d.flowActions ?? [])
-        .filter((flow) => !flow.search)
+        .filter((flow) => !flow.search && !flow.path)
         .filter((flow) => {
           const target = LIST_DEFINITIONS[flow.target];
           return !target.form || !target.prefill?.[resource];

@@ -95,8 +95,20 @@ export interface ProcessAction<T> {
   tone?: 'default' | 'danger';
   /** Solo se ofrece cuando el registro está en un estado que lo permite. */
   when: (row: T) => boolean;
-  confirm?: { title: string; description: (row: T) => string; confirmLabel: string };
+  confirm?: {
+    title: string;
+    description: (row: T) => string;
+    confirmLabel: string;
+    /** Si se define, el diálogo pide un motivo obligatorio y lo envía con la acción. */
+    reason?: { label: string; placeholder?: string };
+  };
   success: (row: T) => string;
+}
+
+/** Dato que solo se ve en el detalle del registro; los vacíos no se muestran. */
+export interface DetailNote {
+  label: string;
+  value: string;
 }
 
 /** Paso siguiente del ciclo: abre otro módulo con este registro ya cargado. */
@@ -108,6 +120,8 @@ export interface FlowAction<T> {
   when?: (row: T) => boolean;
   /** Si se define, abre el listado destino filtrado por este texto en vez de un formulario nuevo. */
   search?: (row: T) => string;
+  /** Si se define, abre esta ruta (p. ej. una página de detalle) en vez del listado destino. */
+  path?: (row: T) => string;
   /**
    * Abre el formulario destino sobre la pantalla actual en vez de navegar: para cerrar el ciclo
    * (cobro, pago) sin salir del grupo.
@@ -143,6 +157,8 @@ export interface ListDefinition<K extends ResourceKey> {
   /** Valores que llegan desde otro módulo (?from=recurso:id). */
   prefill?: Prefill<K>;
   processActions?: readonly ProcessAction<ResourceMap[K]>[];
+  /** Datos extra del detalle que no son columnas (p. ej. el motivo de una anulación). */
+  detailNotes?: (row: ResourceMap[K]) => readonly DetailNote[];
   flowActions?: readonly FlowAction<ResourceMap[K]>[];
   /** Cuándo se puede editar o eliminar (además de lo que permita el rol). */
   editWhen?: (row: ResourceMap[K]) => boolean;

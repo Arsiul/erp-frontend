@@ -51,6 +51,8 @@ export interface Sale extends DocumentTotals {
   invoiceId: string;
   invoiceNumber: string;
   notes: string;
+  /** Por qué se anuló; vacío mientras siga vigente. */
+  cancelReason: string;
 }
 
 export type InvoiceKind = 'factura' | 'boleta';

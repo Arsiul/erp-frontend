@@ -76,9 +76,9 @@ const usuarios: ResourceRules<'usuarios'> = {
     activate: activation.activate,
     deactivate: {
       label: activation.deactivate.label,
-      run(store, ctx, current) {
+      run(store, ctx, current, input) {
         if (current.id === ctx.userId) fail('No puedes desactivar tu propio usuario.');
-        activation.deactivate.run(store, ctx, current);
+        activation.deactivate.run(store, ctx, current, input);
       },
     },
   },

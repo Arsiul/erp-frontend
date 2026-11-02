@@ -102,9 +102,11 @@ export const remote = {
     resource: K,
     id: string,
     actionId: string,
+    reason?: string,
   ): Promise<ResourceMap[K]> {
     const saved = await api.post<ResourceMap[K]>(
       `${path(resource, id)}/${encodeURIComponent(actionId)}`,
+      reason === undefined ? undefined : { reason },
     );
     return withFileUrl(resource, saved);
   },
